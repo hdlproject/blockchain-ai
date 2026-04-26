@@ -1,6 +1,7 @@
 import pandas as pd
 import pytest
 import joblib
+from blockchain_ai.config import TrainConfig
 from blockchain_ai.train import train_model
 
 
@@ -23,13 +24,25 @@ def _processed_df():
     })
 
 
+def _default_config(**overrides):
+    base = dict(
+        target_col="log_gas_price",
+        model_type="xgboost",
+        stratify_col="transaction_type",
+        test_size=0.2,
+        hyperparameters={"n_estimators": 10, "random_state": 42},
+    )
+    base.update(overrides)
+    return TrainConfig(**base)
+
+
 def test_train_model_saves_model_artifact(tmp_path):
     csv_path = tmp_path / "processed.csv"
     model_path = tmp_path / "model.joblib"
     test_path = tmp_path / "test.csv"
     _processed_df().to_csv(csv_path, index=False)
 
-    train_model(str(csv_path), "log_gas_price", str(model_path), str(test_path))
+    train_model(str(csv_path), str(model_path), str(test_path), _default_config())
 
     assert model_path.exists()
 
@@ -40,7 +53,7 @@ def test_train_model_saves_test_split(tmp_path):
     test_path = tmp_path / "test.csv"
     _processed_df().to_csv(csv_path, index=False)
 
-    train_model(str(csv_path), "log_gas_price", str(model_path), str(test_path))
+    train_model(str(csv_path), str(model_path), str(test_path), _default_config())
 
     assert test_path.exists()
     test_df = pd.read_csv(test_path)
@@ -54,19 +67,23 @@ def test_train_model_raises_on_unknown_model_type(tmp_path):
 
     with pytest.raises(ValueError, match="Unknown model_type"):
         train_model(
-            str(csv_path), "log_gas_price",
-            str(tmp_path / "m.joblib"), str(tmp_path / "t.csv"),
-            model_type="unknown",
+            str(csv_path),
+            str(tmp_path / "m.joblib"),
+            str(tmp_path / "t.csv"),
+            _default_config(model_type="unknown"),
         )
 
 
-def test_train_model_default_is_xgboost(tmp_path):
+def test_train_model_uses_hyperparameters_from_config(tmp_path):
     csv_path = tmp_path / "processed.csv"
     model_path = tmp_path / "model.joblib"
     test_path = tmp_path / "test.csv"
     _processed_df().to_csv(csv_path, index=False)
 
-    train_model(str(csv_path), "log_gas_price", str(model_path), str(test_path))
+    train_model(
+        str(csv_path), str(model_path), str(test_path),
+        _default_config(hyperparameters={"n_estimators": 5, "random_state": 0}),
+    )
 
     model = joblib.load(model_path)
-    assert "XGB" in type(model).__name__
+    assert model.n_estimators == 5
