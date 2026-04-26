@@ -2,6 +2,7 @@ import zipfile
 import numpy as np
 import pandas as pd
 import pytest
+from blockchain_ai.config import IngestConfig
 from blockchain_ai.ingest import load_and_clean
 
 
@@ -42,24 +43,34 @@ def _minimal_df(**overrides):
     return pd.DataFrame(base)
 
 
+def _default_config():
+    return IngestConfig(
+        drop_cols=["hash", "block_hash", "from_address", "to_address", "input",
+                   "receipt_contract_address", "receipt_root"],
+        fill_zero_cols=["max_fee_per_gas", "max_priority_fee_per_gas"],
+        timestamp_col="block_timestamp",
+        target_col="gas_price",
+    )
+
+
 def test_load_and_clean_drops_junk_columns(tmp_path):
     df = _minimal_df()
     zip_path = _make_zip(tmp_path, df)
     out_path = str(tmp_path / "out.csv")
 
-    result = load_and_clean(zip_path, out_path)
+    result = load_and_clean(zip_path, out_path, _default_config())
 
     junk = {"hash", "block_hash", "from_address", "to_address", "input",
             "receipt_contract_address", "receipt_root", "gas_price"}
     assert not junk.intersection(result.columns)
 
 
-def test_load_and_clean_fills_eip1559_nulls(tmp_path):
-    df = _minimal_df()  # max_fee_per_gas and max_priority_fee_per_gas are None
+def test_load_and_clean_fills_zero_cols(tmp_path):
+    df = _minimal_df()
     zip_path = _make_zip(tmp_path, df)
     out_path = str(tmp_path / "out.csv")
 
-    result = load_and_clean(zip_path, out_path)
+    result = load_and_clean(zip_path, out_path, _default_config())
 
     assert result["max_fee_per_gas"].iloc[0] == 0.0
     assert result["max_priority_fee_per_gas"].iloc[0] == 0.0
@@ -70,17 +81,17 @@ def test_load_and_clean_parses_block_timestamp(tmp_path):
     zip_path = _make_zip(tmp_path, df)
     out_path = str(tmp_path / "out.csv")
 
-    result = load_and_clean(zip_path, out_path)
+    result = load_and_clean(zip_path, out_path, _default_config())
 
     assert pd.api.types.is_integer_dtype(result["block_timestamp"])
 
 
-def test_load_and_clean_adds_log_gas_price(tmp_path):
+def test_load_and_clean_adds_log_target(tmp_path):
     df = _minimal_df(gas_price=[12000000000])
     zip_path = _make_zip(tmp_path, df)
     out_path = str(tmp_path / "out.csv")
 
-    result = load_and_clean(zip_path, out_path)
+    result = load_and_clean(zip_path, out_path, _default_config())
 
     assert "log_gas_price" in result.columns
     expected = np.log1p(12000000000)
@@ -92,11 +103,11 @@ def test_load_and_clean_saves_csv(tmp_path):
     zip_path = _make_zip(tmp_path, df)
     out_path = str(tmp_path / "out.csv")
 
-    load_and_clean(zip_path, out_path)
+    load_and_clean(zip_path, out_path, _default_config())
 
     assert (tmp_path / "out.csv").exists()
 
 
 def test_load_and_clean_raises_on_missing_file(tmp_path):
     with pytest.raises(FileNotFoundError):
-        load_and_clean(str(tmp_path / "missing.zip"), str(tmp_path / "out.csv"))
+        load_and_clean(str(tmp_path / "missing.zip"), str(tmp_path / "out.csv"), _default_config())
