@@ -21,9 +21,15 @@ class TrainConfig:
 
 
 @dataclass
+class HpoConfig:
+    n_trials: int
+
+
+@dataclass
 class PipelineConfig:
     ingest: IngestConfig
     train: TrainConfig
+    hpo: "HpoConfig | None" = None
 
 
 def load_config(path: str) -> PipelineConfig:
@@ -50,6 +56,13 @@ def load_config(path: str) -> PipelineConfig:
         if key not in t:
             raise ValueError(f"Config train section missing required key: '{key}'")
 
+    hpo_cfg = None
+    if "hpo" in raw:
+        h = raw["hpo"]
+        if not h or "n_trials" not in h:
+            raise ValueError("Config hpo section missing required key: 'n_trials'")
+        hpo_cfg = HpoConfig(n_trials=h["n_trials"])
+
     return PipelineConfig(
         ingest=IngestConfig(
             drop_cols=i["drop_cols"],
@@ -64,4 +77,5 @@ def load_config(path: str) -> PipelineConfig:
             test_size=t["test_size"],
             hyperparameters=t["hyperparameters"],
         ),
+        hpo=hpo_cfg,
     )
