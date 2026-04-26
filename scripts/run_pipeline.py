@@ -4,9 +4,9 @@ Run the full regression pipeline: ingest -> train -> evaluate.
 
 Usage:
     poetry run python scripts/run_pipeline.py \
-        --raw data/raw/input.csv \
-        --target target \
-        [--model-type linear]
+        --raw data/raw/ethereum-transactions.zip \
+        --target log_gas_price \
+        [--model-type xgboost]
 """
 import argparse
 import sys
@@ -21,12 +21,13 @@ from blockchain_ai.evaluate import evaluate_model
 
 def main():
     parser = argparse.ArgumentParser(description="Run regression pipeline")
-    parser.add_argument("--raw", required=True, help="Path to raw input CSV")
+    parser.add_argument("--raw", required=True, help="Path to raw input zip")
     parser.add_argument("--target", required=True, help="Name of target column")
-    parser.add_argument("--model-type", default="linear", help="Model type (default: linear)")
+    parser.add_argument("--model-type", default="xgboost", help="Model type (default: xgboost)")
     args = parser.parse_args()
 
-    processed_path = "data/processed/processed.csv"
+    processed_path = "data/processed/ethereum-transactions.csv"
+    test_path = "data/processed/ethereum-transactions-test.csv"
     model_path = "models/model.joblib"
     report_path = "reports/report.json"
 
@@ -34,10 +35,10 @@ def main():
     load_and_clean(args.raw, processed_path)
 
     print(f"[2/3] Training {args.model_type} model ...")
-    train_model(processed_path, args.target, model_path, model_type=args.model_type)
+    train_model(processed_path, args.target, model_path, test_path, model_type=args.model_type)
 
     print(f"[3/3] Evaluating model ...")
-    report = evaluate_model(processed_path, args.target, model_path, report_path)
+    report = evaluate_model(test_path, args.target, model_path, report_path)
 
     print(f"\nPipeline complete. Report saved to {report_path}:")
     for k, v in report.items():
