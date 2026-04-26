@@ -1,0 +1,27 @@
+ingest:
+  drop_cols:
+    - hash
+    - block_hash
+    - from_address
+    - to_address
+    - input
+    - receipt_contract_address
+    - receipt_root
+  fill_zero_cols:
+    - max_fee_per_gas
+    - max_priority_fee_per_gas
+  timestamp_col: block_timestamp
+  target_col: gas_price
+
+train:
+  target_col: log_gas_price
+  model_type: xgboost
+  stratify_col: transaction_type
+  test_size: 0.2
+  hyperparameters:
+    n_estimators: 300
+    learning_rate: 0.05
+    max_depth: 6
+    subsample: 0.8
+    colsample_bytree: 0.8
+    random_state: 42
