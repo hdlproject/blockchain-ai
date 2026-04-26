@@ -45,15 +45,19 @@ def _minimal_df(**overrides):
 
 def _default_config():
     return IngestConfig(
-        drop_cols=["hash", "block_hash", "from_address", "to_address", "input",
-                   "receipt_contract_address", "receipt_root"],
+        feature_cols=[
+            "nonce", "transaction_index", "value", "gas",
+            "receipt_cumulative_gas_used", "receipt_gas_used", "receipt_status",
+            "block_timestamp", "block_number", "max_fee_per_gas",
+            "max_priority_fee_per_gas", "transaction_type", "receipt_effective_gas_price",
+        ],
         fill_zero_cols=["max_fee_per_gas", "max_priority_fee_per_gas"],
         timestamp_col="block_timestamp",
         target_col="gas_price",
     )
 
 
-def test_load_and_clean_drops_junk_columns(tmp_path):
+def test_load_and_clean_keeps_only_feature_cols(tmp_path):
     df = _minimal_df()
     zip_path = _make_zip(tmp_path, df)
     out_path = str(tmp_path / "out.csv")

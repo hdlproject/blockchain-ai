@@ -14,7 +14,7 @@ def load_and_clean(input_path: str, output_path: str, config: IngestConfig) -> p
         csv_name = next(n for n in z.namelist() if n.endswith(".csv"))
         df = pd.read_csv(z.open(csv_name))
 
-    df = df.drop(columns=[c for c in config.drop_cols if c in df.columns])
+    df = df[config.feature_cols + [config.target_col]]
     df[config.fill_zero_cols] = df[config.fill_zero_cols].fillna(0.0)
     df[config.timestamp_col] = (
         pd.to_datetime(df[config.timestamp_col], utc=True).astype("int64") // 10**9

@@ -5,7 +5,7 @@ import yaml
 
 @dataclass
 class IngestConfig:
-    drop_cols: list[str]
+    feature_cols: list[str]
     fill_zero_cols: list[str]
     timestamp_col: str
     target_col: str
@@ -48,7 +48,7 @@ def load_config(path: str) -> PipelineConfig:
     i = raw["ingest"]
     t = raw["train"]
 
-    for key in ("drop_cols", "fill_zero_cols", "timestamp_col", "target_col"):
+    for key in ("feature_cols", "fill_zero_cols", "timestamp_col", "target_col"):
         if key not in i:
             raise ValueError(f"Config ingest section missing required key: '{key}'")
 
@@ -65,7 +65,7 @@ def load_config(path: str) -> PipelineConfig:
 
     return PipelineConfig(
         ingest=IngestConfig(
-            drop_cols=i["drop_cols"],
+            feature_cols=i["feature_cols"],
             fill_zero_cols=i["fill_zero_cols"],
             timestamp_col=i["timestamp_col"],
             target_col=i["target_col"],

@@ -10,9 +10,9 @@ def _write_yaml(tmp_path, content: str) -> str:
 
 _VALID_YAML = """
 ingest:
-  drop_cols:
-    - hash
-    - block_hash
+  feature_cols:
+    - nonce
+    - value
   fill_zero_cols:
     - max_fee_per_gas
   timestamp_col: block_timestamp
@@ -40,7 +40,7 @@ def test_load_config_returns_pipeline_config(tmp_path):
 def test_load_config_ingest_fields(tmp_path):
     path = _write_yaml(tmp_path, _VALID_YAML)
     cfg = load_config(path)
-    assert cfg.ingest.drop_cols == ["hash", "block_hash"]
+    assert cfg.ingest.feature_cols == ["nonce", "value"]
     assert cfg.ingest.fill_zero_cols == ["max_fee_per_gas"]
     assert cfg.ingest.timestamp_col == "block_timestamp"
     assert cfg.ingest.target_col == "gas_price"
@@ -78,7 +78,7 @@ train:
 def test_load_config_raises_on_missing_train_key(tmp_path):
     yaml = """
 ingest:
-  drop_cols: []
+  feature_cols: []
   fill_zero_cols: []
   timestamp_col: block_timestamp
   target_col: gas_price
@@ -91,7 +91,7 @@ ingest:
 def test_load_config_with_hpo_section(tmp_path):
     yaml_content = """
 ingest:
-  drop_cols: [hash]
+  feature_cols: [nonce]
   fill_zero_cols: [max_fee_per_gas]
   timestamp_col: block_timestamp
   target_col: gas_price
@@ -121,7 +121,7 @@ def test_load_config_without_hpo_section(tmp_path):
 def test_hpo_config_missing_n_trials_raises(tmp_path):
     yaml_content = """
 ingest:
-  drop_cols: [hash]
+  feature_cols: [nonce]
   fill_zero_cols: [max_fee_per_gas]
   timestamp_col: block_timestamp
   target_col: gas_price

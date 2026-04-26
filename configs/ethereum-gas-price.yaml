@@ -1,12 +1,18 @@
 ingest:
-  drop_cols:
-    - hash
-    - block_hash
-    - from_address
-    - to_address
-    - input
-    - receipt_contract_address
-    - receipt_root
+  feature_cols:
+    - nonce
+    - transaction_index
+    - value
+    - gas
+    - receipt_cumulative_gas_used
+    - receipt_gas_used
+    - receipt_status
+    - block_timestamp
+    - block_number
+    - max_fee_per_gas
+    - max_priority_fee_per_gas
+    - transaction_type
+    - receipt_effective_gas_price
   fill_zero_cols:
     - max_fee_per_gas
     - max_priority_fee_per_gas
