@@ -1,4 +1,4 @@
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 import yaml
@@ -15,9 +15,9 @@ class IngestConfig:
 class TrainConfig:
     target_col: str
     model_type: str
-    stratify_col: str
     test_size: float
     hyperparameters: dict
+    stratify_col: str | None = None
 
 
 @dataclass
@@ -27,13 +27,13 @@ class HpoConfig:
 
 @dataclass
 class FieldConfig:
-    type: str                        # "float" or "int"
+    type: str
     description: str
     example: Any
-    ge: float | None = None          # >=
-    gt: float | None = None          # >
-    le: float | None = None          # <=
-    lt: float | None = None          # <
+    ge: float | None = None
+    gt: float | None = None
+    le: float | None = None
+    lt: float | None = None
 
 
 @dataclass
@@ -44,7 +44,20 @@ class ServeConfig:
     target_description: str
     target_unit: str
     log_transform: bool
-    fields: dict[str, FieldConfig]   # keyed by feature column name
+    fields: dict[str, FieldConfig]
+
+
+@dataclass
+class EtherscanConfig:
+    base_url: str
+    rate_limit_per_sec: int
+    timeout_sec: int
+
+
+@dataclass
+class CollectConfig:
+    n_blocks: int
+    output_path: str
 
 
 @dataclass
@@ -53,6 +66,8 @@ class PipelineConfig:
     train: TrainConfig
     hpo: "HpoConfig | None" = None
     serve: "ServeConfig | None" = None
+    etherscan: "EtherscanConfig | None" = None
+    collect: "CollectConfig | None" = None
 
 
 def load_config(path: str) -> PipelineConfig:
@@ -75,7 +90,7 @@ def load_config(path: str) -> PipelineConfig:
         if key not in i:
             raise ValueError(f"Config ingest section missing required key: '{key}'")
 
-    for key in ("target_col", "model_type", "stratify_col", "test_size", "hyperparameters"):
+    for key in ("target_col", "model_type", "test_size", "hyperparameters"):
         if key not in t:
             raise ValueError(f"Config train section missing required key: '{key}'")
 
@@ -113,6 +128,29 @@ def load_config(path: str) -> PipelineConfig:
             },
         )
 
+    etherscan_cfg = None
+    if "etherscan" in raw:
+        e = raw["etherscan"]
+        for key in ("base_url", "rate_limit_per_sec", "timeout_sec"):
+            if key not in e:
+                raise ValueError(f"Config etherscan section missing required key: '{key}'")
+        etherscan_cfg = EtherscanConfig(
+            base_url=e["base_url"],
+            rate_limit_per_sec=int(e["rate_limit_per_sec"]),
+            timeout_sec=int(e["timeout_sec"]),
+        )
+
+    collect_cfg = None
+    if "collect" in raw:
+        c = raw["collect"]
+        for key in ("n_blocks", "output_path"):
+            if key not in c:
+                raise ValueError(f"Config collect section missing required key: '{key}'")
+        collect_cfg = CollectConfig(
+            n_blocks=int(c["n_blocks"]),
+            output_path=c["output_path"],
+        )
+
     return PipelineConfig(
         ingest=IngestConfig(
             feature_cols=i["feature_cols"],
@@ -122,10 +160,12 @@ def load_config(path: str) -> PipelineConfig:
         train=TrainConfig(
             target_col=t["target_col"],
             model_type=t["model_type"],
-            stratify_col=t["stratify_col"],
+            stratify_col=t.get("stratify_col"),
             test_size=t["test_size"],
             hyperparameters=t["hyperparameters"],
         ),
         hpo=hpo_cfg,
         serve=serve_cfg,
+        etherscan=etherscan_cfg,
+        collect=collect_cfg,
     )

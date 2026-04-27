@@ -1,5 +1,5 @@
 import pytest
-from blockchain_ai.config import load_config, PipelineConfig, IngestConfig, TrainConfig, HpoConfig, ServeConfig, FieldConfig
+from blockchain_ai.config import load_config, PipelineConfig, IngestConfig, TrainConfig, HpoConfig, ServeConfig, FieldConfig, EtherscanConfig, CollectConfig
 
 
 def _write_yaml(tmp_path, content: str) -> str:
@@ -226,3 +226,62 @@ def test_load_config_without_serve_section(tmp_path):
     path = _write_yaml(tmp_path, _VALID_YAML)
     cfg = load_config(path)
     assert cfg.serve is None
+
+
+_ETHERSCAN_YAML = """
+etherscan:
+  base_url: https://api.etherscan.io/api
+  rate_limit_per_sec: 5
+  timeout_sec: 10
+
+collect:
+  n_blocks: 500
+  output_path: data/raw/blocks.csv
+
+ingest:
+  feature_cols:
+    - base_fee_gwei
+    - gas_used_ratio
+  fill_zero_cols: []
+  target_col: base_fee_gwei
+
+train:
+  target_col: log_base_fee_gwei
+  model_type: xgboost
+  test_size: 0.2
+  hyperparameters:
+    n_estimators: 10
+    random_state: 42
+"""
+
+
+def test_load_config_with_etherscan_section(tmp_path):
+    path = _write_yaml(tmp_path, _ETHERSCAN_YAML)
+    cfg = load_config(path)
+    assert cfg.etherscan is not None
+    assert isinstance(cfg.etherscan, EtherscanConfig)
+    assert cfg.etherscan.base_url == "https://api.etherscan.io/api"
+    assert cfg.etherscan.rate_limit_per_sec == 5
+    assert cfg.etherscan.timeout_sec == 10
+
+
+def test_load_config_with_collect_section(tmp_path):
+    path = _write_yaml(tmp_path, _ETHERSCAN_YAML)
+    cfg = load_config(path)
+    assert cfg.collect is not None
+    assert isinstance(cfg.collect, CollectConfig)
+    assert cfg.collect.n_blocks == 500
+    assert cfg.collect.output_path == "data/raw/blocks.csv"
+
+
+def test_load_config_stratify_col_is_optional(tmp_path):
+    path = _write_yaml(tmp_path, _ETHERSCAN_YAML)
+    cfg = load_config(path)
+    assert cfg.train.stratify_col is None
+
+
+def test_load_config_without_etherscan_section(tmp_path):
+    path = _write_yaml(tmp_path, _VALID_YAML)
+    cfg = load_config(path)
+    assert cfg.etherscan is None
+    assert cfg.collect is None
