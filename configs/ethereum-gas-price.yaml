@@ -1,19 +1,25 @@
+etherscan:
+  base_url: https://api.etherscan.io/api
+  rate_limit_per_sec: 5
+  timeout_sec: 30
+
+collect:
+  n_blocks: 2000
+  output_path: data/raw/ethereum-blocks.csv
+
 ingest:
   feature_cols:
-    - value
-    - gas
-    - max_fee_per_gas
-    - max_priority_fee_per_gas
-    - transaction_type
-  fill_zero_cols:
-    - max_fee_per_gas
-    - max_priority_fee_per_gas
-  target_col: gas_price
+    - base_fee_gwei
+    - gas_used_ratio
+    - hour_of_day
+    - day_of_week
+    - base_fee_trend
+  fill_zero_cols: []
+  target_col: log_base_fee_gwei
 
 train:
-  target_col: log_gas_price
+  target_col: log_base_fee_gwei
   model_type: xgboost
-  stratify_col: transaction_type
   test_size: 0.2
   hyperparameters:
     n_estimators: 300
@@ -23,46 +29,42 @@ train:
     colsample_bytree: 0.8
     random_state: 42
 
-hpo:
-  n_trials: 50
-
 serve:
-  title: Ethereum Gas Price Predictor
+  title: Ethereum Base Fee Predictor
   description: >
-    Predicts the effective gas price (in Wei) for an Ethereum transaction
-    given only the fields the sender controls before broadcasting.
+    Predicts the next block's base fee (in Gwei) using recent network congestion signals.
+    All inputs are derived from block-level data — no per-transaction fields required.
   model_path: models/model.joblib
-  target_description: Predicted effective gas price
-  target_unit: Wei
-  log_transform: true      # model output is log1p(target); apply expm1 before returning
+  target_description: Predicted next-block base fee
+  target_unit: Gwei
+  log_transform: true
   fields:
-    value:
+    base_fee_gwei:
       type: float
-      description: Amount of ETH to transfer, in Wei (1 ETH = 1e18 Wei).
-      example: 0.0
-      ge: 0
-    gas:
-      type: int
-      description: Gas limit set by the sender. Simple ETH transfer = 21000; contract calls are higher.
-      example: 21000
+      description: Current block's base fee in Gwei (1 Gwei = 1e9 Wei). Set by the protocol based on the previous block's utilisation.
+      example: 15.0
       gt: 0
-    max_fee_per_gas:
+    gas_used_ratio:
       type: float
-      description: >
-        EIP-1559: maximum total fee per gas unit you are willing to pay, in Wei.
-        Set to 0 for legacy (type-0) transactions.
-      example: 30000000000.0
+      description: Fraction of the block's gas limit that was consumed (0.0–1.0). Values above 0.5 push the base fee up; below 0.5 pushes it down.
+      example: 0.5
       ge: 0
-    max_priority_fee_per_gas:
-      type: float
-      description: >
-        EIP-1559: miner tip per gas unit, in Wei. Must be <= max_fee_per_gas.
-        Set to 0 for legacy transactions.
-      example: 2000000000.0
-      ge: 0
-    transaction_type:
+      le: 1
+    hour_of_day:
       type: int
-      description: "Transaction type: 0 = legacy, 1 = access-list (EIP-2930), 2 = EIP-1559."
-      example: 2
+      description: UTC hour of the block timestamp (0–23). Captures intra-day demand cycles.
+      example: 14
       ge: 0
-      le: 2
+      le: 23
+    day_of_week:
+      type: int
+      description: Day of week of the block timestamp (0 = Monday, 6 = Sunday). Captures weekly demand patterns.
+      example: 1
+      ge: 0
+      le: 6
+    base_fee_trend:
+      type: float
+      description: >
+        10-block momentum: (current_base_fee - base_fee_10_blocks_ago) / base_fee_10_blocks_ago.
+        Positive means fees are rising; negative means fees are falling.
+      example: 0.02

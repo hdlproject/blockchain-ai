@@ -4,7 +4,7 @@ Run the full regression pipeline: ingest -> [hpo] -> train -> evaluate.
 
 Usage:
     poetry run python scripts/run_pipeline.py \
-        --raw data/raw/ethereum-transactions.zip \
+        --input data/raw/ethereum-transactions.csv \
         --config configs/ethereum-gas-price.yaml
 """
 import argparse
@@ -22,7 +22,7 @@ from blockchain_ai.tune import run_hpo
 
 def main():
     parser = argparse.ArgumentParser(description="Run regression pipeline")
-    parser.add_argument("--raw", required=True, help="Path to raw input zip")
+    parser.add_argument("--input", required=True, help="Path to raw input CSV")
     parser.add_argument("--config", required=True, help="Path to experiment YAML config")
     args = parser.parse_args()
 
@@ -33,8 +33,8 @@ def main():
     model_path = "models/model.joblib"
     report_path = "reports/report.json"
 
-    print(f"[1/4] Ingesting {args.raw} ...")
-    load_and_clean(args.raw, processed_path, cfg.ingest)
+    print(f"[1/4] Ingesting {args.input} ...")
+    load_and_clean(args.input, processed_path, cfg.ingest)
 
     train_config = cfg.train
     if cfg.hpo is not None:
