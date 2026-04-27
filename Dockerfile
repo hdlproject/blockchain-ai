@@ -9,10 +9,11 @@ RUN poetry config virtualenvs.create false \
     && poetry install --only main --no-root --no-interaction
 
 COPY src/ ./src/
-COPY models/ ./models/
+COPY configs/ ./configs/
 COPY app.py .
 
 ENV PYTHONPATH=/app/src
+ENV CONFIG=configs/ethereum-gas-price.yaml
 
 EXPOSE 8080
 CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8080"]
