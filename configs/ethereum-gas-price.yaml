@@ -1,22 +1,13 @@
 ingest:
   feature_cols:
-    - nonce
-    - transaction_index
     - value
     - gas
-    - receipt_cumulative_gas_used
-    - receipt_gas_used
-    - receipt_status
-    - block_timestamp
-    - block_number
     - max_fee_per_gas
     - max_priority_fee_per_gas
     - transaction_type
-    - receipt_effective_gas_price
   fill_zero_cols:
     - max_fee_per_gas
     - max_priority_fee_per_gas
-  timestamp_col: block_timestamp
   target_col: gas_price
 
 train:
@@ -34,3 +25,44 @@ train:
 
 hpo:
   n_trials: 50
+
+serve:
+  title: Ethereum Gas Price Predictor
+  description: >
+    Predicts the effective gas price (in Wei) for an Ethereum transaction
+    given only the fields the sender controls before broadcasting.
+  model_path: models/model.joblib
+  target_description: Predicted effective gas price
+  target_unit: Wei
+  log_transform: true      # model output is log1p(target); apply expm1 before returning
+  fields:
+    value:
+      type: float
+      description: Amount of ETH to transfer, in Wei (1 ETH = 1e18 Wei).
+      example: 0.0
+      ge: 0
+    gas:
+      type: int
+      description: Gas limit set by the sender. Simple ETH transfer = 21000; contract calls are higher.
+      example: 21000
+      gt: 0
+    max_fee_per_gas:
+      type: float
+      description: >
+        EIP-1559: maximum total fee per gas unit you are willing to pay, in Wei.
+        Set to 0 for legacy (type-0) transactions.
+      example: 30000000000.0
+      ge: 0
+    max_priority_fee_per_gas:
+      type: float
+      description: >
+        EIP-1559: miner tip per gas unit, in Wei. Must be <= max_fee_per_gas.
+        Set to 0 for legacy transactions.
+      example: 2000000000.0
+      ge: 0
+    transaction_type:
+      type: int
+      description: "Transaction type: 0 = legacy, 1 = access-list (EIP-2930), 2 = EIP-1559."
+      example: 2
+      ge: 0
+      le: 2

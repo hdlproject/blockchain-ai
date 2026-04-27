@@ -1,5 +1,5 @@
 import pytest
-from blockchain_ai.config import load_config, PipelineConfig, IngestConfig, TrainConfig, HpoConfig
+from blockchain_ai.config import load_config, PipelineConfig, IngestConfig, TrainConfig, HpoConfig, ServeConfig, FieldConfig
 
 
 def _write_yaml(tmp_path, content: str) -> str:
@@ -11,11 +11,10 @@ def _write_yaml(tmp_path, content: str) -> str:
 _VALID_YAML = """
 ingest:
   feature_cols:
-    - nonce
     - value
+    - gas
   fill_zero_cols:
     - max_fee_per_gas
-  timestamp_col: block_timestamp
   target_col: gas_price
 
 train:
@@ -40,9 +39,8 @@ def test_load_config_returns_pipeline_config(tmp_path):
 def test_load_config_ingest_fields(tmp_path):
     path = _write_yaml(tmp_path, _VALID_YAML)
     cfg = load_config(path)
-    assert cfg.ingest.feature_cols == ["nonce", "value"]
+    assert cfg.ingest.feature_cols == ["value", "gas"]
     assert cfg.ingest.fill_zero_cols == ["max_fee_per_gas"]
-    assert cfg.ingest.timestamp_col == "block_timestamp"
     assert cfg.ingest.target_col == "gas_price"
 
 
@@ -80,7 +78,6 @@ def test_load_config_raises_on_missing_train_key(tmp_path):
 ingest:
   feature_cols: []
   fill_zero_cols: []
-  timestamp_col: block_timestamp
   target_col: gas_price
 """
     path = _write_yaml(tmp_path, yaml)
@@ -91,9 +88,8 @@ ingest:
 def test_load_config_with_hpo_section(tmp_path):
     yaml_content = """
 ingest:
-  feature_cols: [nonce]
+  feature_cols: [value]
   fill_zero_cols: [max_fee_per_gas]
-  timestamp_col: block_timestamp
   target_col: gas_price
 train:
   target_col: log_gas_price
@@ -121,9 +117,8 @@ def test_load_config_without_hpo_section(tmp_path):
 def test_hpo_config_missing_n_trials_raises(tmp_path):
     yaml_content = """
 ingest:
-  feature_cols: [nonce]
+  feature_cols: [value]
   fill_zero_cols: [max_fee_per_gas]
-  timestamp_col: block_timestamp
   target_col: gas_price
 train:
   target_col: log_gas_price
@@ -137,3 +132,97 @@ hpo: {}
     path = _write_yaml(tmp_path, yaml_content)
     with pytest.raises(ValueError, match="hpo.*n_trials"):
         load_config(path)
+
+
+_SERVE_YAML = """
+ingest:
+  feature_cols:
+    - value
+    - gas
+  fill_zero_cols: []
+  target_col: gas_price
+
+train:
+  target_col: log_gas_price
+  model_type: xgboost
+  stratify_col: transaction_type
+  test_size: 0.2
+  hyperparameters:
+    n_estimators: 10
+
+serve:
+  title: Test API
+  description: A test predictor.
+  model_path: models/model.joblib
+  target_description: Gas price
+  target_unit: Wei
+  log_transform: true
+  fields:
+    value:
+      type: float
+      description: ETH value in Wei.
+      example: 0.0
+      ge: 0
+    gas:
+      type: int
+      description: Gas limit.
+      example: 21000
+      gt: 0
+"""
+
+
+def test_load_config_with_serve_section(tmp_path):
+    path = _write_yaml(tmp_path, _SERVE_YAML)
+    cfg = load_config(path)
+    assert cfg.serve is not None
+    assert isinstance(cfg.serve, ServeConfig)
+
+
+def test_load_config_serve_fields(tmp_path):
+    path = _write_yaml(tmp_path, _SERVE_YAML)
+    cfg = load_config(path)
+    s = cfg.serve
+    assert s.title == "Test API"
+    assert s.model_path == "models/model.joblib"
+    assert s.log_transform is True
+    assert set(s.fields.keys()) == {"value", "gas"}
+
+
+def test_load_config_serve_field_metadata(tmp_path):
+    path = _write_yaml(tmp_path, _SERVE_YAML)
+    cfg = load_config(path)
+    value_field = cfg.serve.fields["value"]
+    assert isinstance(value_field, FieldConfig)
+    assert value_field.type == "float"
+    assert value_field.ge == 0
+    assert value_field.gt is None
+    gas_field = cfg.serve.fields["gas"]
+    assert gas_field.type == "int"
+    assert gas_field.gt == 0
+
+
+def test_load_config_serve_missing_required_key_raises(tmp_path):
+    yaml_content = """
+ingest:
+  feature_cols: [value]
+  fill_zero_cols: []
+  target_col: gas_price
+train:
+  target_col: log_gas_price
+  model_type: xgboost
+  stratify_col: transaction_type
+  test_size: 0.2
+  hyperparameters:
+    n_estimators: 10
+serve:
+  title: Broken
+"""
+    path = _write_yaml(tmp_path, yaml_content)
+    with pytest.raises(ValueError, match="serve.*description"):
+        load_config(path)
+
+
+def test_load_config_without_serve_section(tmp_path):
+    path = _write_yaml(tmp_path, _VALID_YAML)
+    cfg = load_config(path)
+    assert cfg.serve is None

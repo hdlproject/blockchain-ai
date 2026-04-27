@@ -19,25 +19,18 @@ def _minimal_df(**overrides):
     base = {
         "hash": ["0xabc"],
         "nonce": [1],
-        "transaction_index": [0],
         "from_address": ["0x1"],
         "to_address": ["0x2"],
         "value": [1000.0],
         "gas": [21000],
         "gas_price": [12000000000],
         "input": ["0x"],
-        "receipt_cumulative_gas_used": [21000],
-        "receipt_gas_used": [21000],
         "receipt_contract_address": [None],
         "receipt_root": [None],
-        "receipt_status": [1],
-        "block_timestamp": ["2023-01-01 00:00:00+00:00"],
-        "block_number": [16000000],
         "block_hash": ["0xdef"],
         "max_fee_per_gas": [None],
         "max_priority_fee_per_gas": [None],
         "transaction_type": [0],
-        "receipt_effective_gas_price": [12000000000],
     }
     base.update(overrides)
     return pd.DataFrame(base)
@@ -45,14 +38,8 @@ def _minimal_df(**overrides):
 
 def _default_config():
     return IngestConfig(
-        feature_cols=[
-            "nonce", "transaction_index", "value", "gas",
-            "receipt_cumulative_gas_used", "receipt_gas_used", "receipt_status",
-            "block_timestamp", "block_number", "max_fee_per_gas",
-            "max_priority_fee_per_gas", "transaction_type", "receipt_effective_gas_price",
-        ],
+        feature_cols=["value", "gas", "max_fee_per_gas", "max_priority_fee_per_gas", "transaction_type"],
         fill_zero_cols=["max_fee_per_gas", "max_priority_fee_per_gas"],
-        timestamp_col="block_timestamp",
         target_col="gas_price",
     )
 
@@ -78,16 +65,6 @@ def test_load_and_clean_fills_zero_cols(tmp_path):
 
     assert result["max_fee_per_gas"].iloc[0] == 0.0
     assert result["max_priority_fee_per_gas"].iloc[0] == 0.0
-
-
-def test_load_and_clean_parses_block_timestamp(tmp_path):
-    df = _minimal_df()
-    zip_path = _make_zip(tmp_path, df)
-    out_path = str(tmp_path / "out.csv")
-
-    result = load_and_clean(zip_path, out_path, _default_config())
-
-    assert pd.api.types.is_integer_dtype(result["block_timestamp"])
 
 
 def test_load_and_clean_adds_log_target(tmp_path):

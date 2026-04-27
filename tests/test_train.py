@@ -7,19 +7,11 @@ from blockchain_ai.train import train_model
 
 def _processed_df():
     return pd.DataFrame({
-        "nonce": list(range(20)),
-        "transaction_index": list(range(20)),
         "value": [float(i * 1000) for i in range(20)],
         "gas": [21000] * 20,
-        "receipt_cumulative_gas_used": [21000] * 20,
-        "receipt_gas_used": [21000] * 20,
-        "receipt_status": [1] * 20,
-        "block_timestamp": [1672531200 + i * 12 for i in range(20)],
-        "block_number": [16000000 + i for i in range(20)],
         "max_fee_per_gas": [0.0] * 20,
         "max_priority_fee_per_gas": [0.0] * 20,
         "transaction_type": [0] * 10 + [2] * 10,
-        "receipt_effective_gas_price": [12000000000] * 20,
         "log_gas_price": [23.2] * 20,
     })
 

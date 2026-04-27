@@ -9,19 +9,11 @@ from blockchain_ai.evaluate import evaluate_model
 
 def _make_test_split(tmp_path):
     X = pd.DataFrame({
-        "nonce": list(range(10)),
-        "transaction_index": list(range(10)),
         "value": [float(i * 1000) for i in range(10)],
         "gas": [21000] * 10,
-        "receipt_cumulative_gas_used": [21000] * 10,
-        "receipt_gas_used": [21000] * 10,
-        "receipt_status": [1] * 10,
-        "block_timestamp": [1672531200 + i * 12 for i in range(10)],
-        "block_number": [16000000 + i for i in range(10)],
         "max_fee_per_gas": [0.0] * 10,
         "max_priority_fee_per_gas": [0.0] * 10,
         "transaction_type": [0] * 5 + [2] * 5,
-        "receipt_effective_gas_price": [12000000000] * 10,
     })
     y = pd.Series([23.2] * 10, name="log_gas_price")
 

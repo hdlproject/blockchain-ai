@@ -16,9 +16,6 @@ def load_and_clean(input_path: str, output_path: str, config: IngestConfig) -> p
 
     df = df[config.feature_cols + [config.target_col]]
     df[config.fill_zero_cols] = df[config.fill_zero_cols].fillna(0.0)
-    df[config.timestamp_col] = (
-        pd.to_datetime(df[config.timestamp_col], utc=True).astype("int64") // 10**9
-    )
     df[f"log_{config.target_col}"] = np.log1p(df[config.target_col])
     df = df.drop(columns=[config.target_col])
 

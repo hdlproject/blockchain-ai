@@ -15,9 +15,9 @@ dependencies = [
     "pyyaml (>=6.0)",
     "optuna (>=3.0)",
     "plotext (>=5.3.2,<6.0.0)",
-    "fastapi>=0.111.0",
-    "uvicorn[standard]>=0.29.0",
-    "python-multipart>=0.0.9",
+    "fastapi (>=0.111.0)",
+    "uvicorn[standard] (>=0.29.0)",
+    "python-multipart (>=0.0.9)",
 ]
 
 [tool.poetry]
