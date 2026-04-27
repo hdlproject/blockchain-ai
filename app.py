@@ -32,7 +32,16 @@ serve: ServeConfig = _cfg.serve
 feature_cols: list[str] = _cfg.ingest.feature_cols
 
 app = FastAPI(title=serve.title, description=serve.description, version="0.1.0")
-model = joblib.load(os.environ.get("MODEL_PATH", serve.model_path))
+_raw_model_path = os.environ.get("MODEL_PATH", serve.model_path)
+if _raw_model_path.startswith("gs://"):
+    import subprocess
+    import tempfile
+    _tmp = tempfile.NamedTemporaryFile(suffix=".joblib", delete=False)
+    subprocess.run(["gsutil", "cp", _raw_model_path, _tmp.name], check=True)
+    _model_path = _tmp.name
+else:
+    _model_path = _raw_model_path
+model = joblib.load(_model_path)
 
 
 # --- dynamic Pydantic model built from serve.fields ---

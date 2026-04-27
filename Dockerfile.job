@@ -20,10 +20,8 @@ RUN poetry config virtualenvs.create false \
 
 COPY src/ ./src/
 COPY configs/ ./configs/
-COPY app.py .
+COPY scripts/ ./scripts/
 
 ENV PYTHONPATH=/app/src
-ENV CONFIG=configs/ethereum-gas-price.yaml
 
-EXPOSE 8080
-CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8080"]
+CMD ["bash", "scripts/retrain_job.sh"]
