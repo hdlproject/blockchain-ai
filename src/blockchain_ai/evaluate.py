@@ -14,8 +14,8 @@ def evaluate_model(test_path: str, target_col: str, model_path: str, report_path
     model = joblib.load(model_path)
     y_pred_log = model.predict(X)
 
-    y_true = np.expm1(y_log)
-    y_pred = np.expm1(y_pred_log)
+    y_true = np.expm1(np.clip(y_log, a_min=None, a_max=709.0))
+    y_pred = np.expm1(np.clip(y_pred_log, a_min=None, a_max=709.0))
 
     report = {
         "rmse": float(mean_squared_error(y_true, y_pred) ** 0.5),
