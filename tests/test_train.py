@@ -79,3 +79,32 @@ def test_train_model_uses_hyperparameters_from_config(tmp_path):
 
     model = joblib.load(model_path)
     assert model.n_estimators == 5
+
+
+def _processed_df_no_stratify():
+    return pd.DataFrame({
+        "base_fee_gwei": [10.0 + i * 0.1 for i in range(20)],
+        "gas_used_ratio": [0.5] * 20,
+        "base_fee_trend": [0.01] * 20,
+        "hour_of_day": [i % 24 for i in range(20)],
+        "day_of_week": [i % 7 for i in range(20)],
+        "log_base_fee_gwei": [2.3 + i * 0.01 for i in range(20)],
+    })
+
+
+def test_train_model_works_without_stratify_col(tmp_path):
+    csv_path = tmp_path / "processed.csv"
+    model_path = tmp_path / "model.joblib"
+    test_path = tmp_path / "test.csv"
+    _processed_df_no_stratify().to_csv(csv_path, index=False)
+
+    cfg = TrainConfig(
+        target_col="log_base_fee_gwei",
+        model_type="xgboost",
+        stratify_col=None,
+        test_size=0.2,
+        hyperparameters={"n_estimators": 10, "random_state": 42},
+    )
+    train_model(str(csv_path), str(model_path), str(test_path), cfg)
+
+    assert model_path.exists()

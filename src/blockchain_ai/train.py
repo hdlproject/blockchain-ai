@@ -16,11 +16,13 @@ def train_model(
     X = df.drop(columns=[config.target_col])
     y = df[config.target_col]
 
+    stratify = df[config.stratify_col] if config.stratify_col else None
+
     X_train, X_test, y_train, y_test = train_test_split(
         X, y,
         test_size=config.test_size,
         random_state=config.hyperparameters.get("random_state", 42),
-        stratify=df[config.stratify_col],
+        stratify=stratify,
     )
 
     if config.model_type == "xgboost":
