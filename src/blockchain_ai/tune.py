@@ -25,12 +25,11 @@ def run_hpo(input_path: str, config: TrainConfig, n_trials: int) -> TrainConfig:
     def objective(trial):
         params = {
             "n_estimators": trial.suggest_int("n_estimators", 50, 500),
-            "learning_rate": trial.suggest_float("learning_rate", 1e-3, 0.3, log=True),
+            "learning_rate": trial.suggest_float("learning_rate", 0.01, 0.3, log=True),
             "max_depth": trial.suggest_int("max_depth", 3, 10),
             "subsample": trial.suggest_float("subsample", 0.5, 1.0),
             "colsample_bytree": trial.suggest_float("colsample_bytree", 0.5, 1.0),
             "random_state": 42,
-            "objective": config.hyperparameters.get("objective", "reg:squarederror"),
         }
         t0 = time.perf_counter()
         scores = cross_val_score(XGBRegressor(**params), X, y, cv=cv, scoring="neg_root_mean_squared_error")
@@ -52,11 +51,7 @@ def run_hpo(input_path: str, config: TrainConfig, n_trials: int) -> TrainConfig:
     print(f"Best trial #{best.number + 1}  RMSE={-best.value:.6f}")
     print(f"Params: {study.best_params}")
 
-    best_params = {
-        **study.best_params,
-        "random_state": 42,
-        "objective": config.hyperparameters.get("objective", "reg:squarederror"),
-    }
+    best_params = {**study.best_params, "random_state": 42}
     return replace(config, hyperparameters=best_params)
 
 
