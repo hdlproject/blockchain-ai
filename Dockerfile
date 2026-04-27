@@ -10,6 +10,7 @@ RUN poetry config virtualenvs.create false \
 
 COPY src/ ./src/
 COPY configs/ ./configs/
+COPY models/ ./models/
 COPY app.py .
 
 ENV PYTHONPATH=/app/src

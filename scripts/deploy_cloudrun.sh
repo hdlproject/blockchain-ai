@@ -3,29 +3,23 @@
 #
 # Prerequisites:
 #   - gcloud CLI authenticated and project set
-#   - Model artifact uploaded to GCS:
-#       gsutil cp models/model.joblib gs://<BUCKET>/blockchain-ai/model.joblib
+#   - Trained model artifact at models/model.joblib (committed to repo)
 #   - ETHERSCAN_API_KEY stored in Secret Manager:
 #       echo -n "your_key" | gcloud secrets create ETHERSCAN_API_KEY --data-file=-
 #
 # Usage:
-#   ./scripts/deploy_cloudrun.sh [PROJECT_ID] [REGION] [MODEL_GCS_URI]
-#
-# Example:
-#   ./scripts/deploy_cloudrun.sh my-project us-central1 gs://my-bucket/blockchain-ai/model.joblib
+#   ./scripts/deploy_cloudrun.sh [PROJECT_ID] [REGION]
 set -euo pipefail
 
 PROJECT_ID="${1:-$(gcloud config get-value project)}"
 REGION="${2:-us-central1}"
-MODEL_GCS_URI="${3:?Usage: $0 [PROJECT_ID] [REGION] MODEL_GCS_URI}"
 SERVICE="blockchain-ai"
 REPO="${REGION}-docker.pkg.dev/${PROJECT_ID}/cloud-run-source-deploy"
 IMAGE="${REPO}/${SERVICE}"
 
-echo "==> Project   : ${PROJECT_ID}"
-echo "==> Region    : ${REGION}"
-echo "==> Image     : ${IMAGE}"
-echo "==> Model URI : ${MODEL_GCS_URI}"
+echo "==> Project : ${PROJECT_ID}"
+echo "==> Region  : ${REGION}"
+echo "==> Image   : ${IMAGE}"
 echo ""
 
 echo "[1/3] Building and pushing Docker image via Cloud Build..."
@@ -44,7 +38,6 @@ gcloud run deploy "${SERVICE}" \
   --min-instances 0 \
   --max-instances 3 \
   --allow-unauthenticated \
-  --set-env-vars "MODEL_PATH=${MODEL_GCS_URI}" \
   --set-secrets "ETHERSCAN_API_KEY=ETHERSCAN_API_KEY:latest" \
   --project "${PROJECT_ID}"
 
