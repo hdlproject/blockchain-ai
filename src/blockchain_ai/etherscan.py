@@ -24,17 +24,24 @@ class EtherscanClient:
             timeout_sec=config.timeout_sec,
         )
 
-    def _get(self, params: dict) -> dict:
-        time.sleep(self._sleep_secs)
+    def _get(self, params: dict, _retries: int = 3) -> dict:
         params["apikey"] = self._api_key
         params["chainid"] = self._chain_id
-        response = requests.get(self._base_url, params=params, timeout=self._timeout)
-        if response.status_code != 200:
-            raise RuntimeError(f"Etherscan HTTP error: {response.status_code}")
-        data = response.json()
-        if str(data.get("status")) == "0":
-            raise RuntimeError(f"Etherscan API error: {data.get('message')}")
-        return data["result"]
+        for attempt in range(_retries):
+            time.sleep(self._sleep_secs)
+            try:
+                response = requests.get(self._base_url, params=params, timeout=self._timeout)
+            except requests.exceptions.Timeout:
+                if attempt < _retries - 1:
+                    time.sleep(2 ** attempt)
+                    continue
+                raise
+            if response.status_code != 200:
+                raise RuntimeError(f"Etherscan HTTP error: {response.status_code}")
+            data = response.json()
+            if str(data.get("status")) == "0":
+                raise RuntimeError(f"Etherscan API error: {data.get('message')}")
+            return data["result"]
 
     def get_latest_block_number(self) -> int:
         result = self._get({"module": "proxy", "action": "eth_blockNumber"})
