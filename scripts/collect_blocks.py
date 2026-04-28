@@ -62,22 +62,15 @@ def main():
 
     print(f"[2/3] Fetching fee history for {n_blocks} blocks ...")
     rows: list[dict] = []
-    remaining = n_blocks
-    newest = latest
-
-    while remaining > 0:
-        batch = min(remaining, 1024)
-        batch_rows = client.get_fee_history(block_count=batch, newest_block=newest)
-        if not batch_rows:
-            warnings.warn(f"No rows returned for newest_block={newest}")
-            break
-        rows = batch_rows + rows
-        newest = batch_rows[0]["block_number"] - 1
-        remaining -= batch
-        print(f"      Fetched {len(rows)} blocks so far ...")
+    for i, block_num in enumerate(range(latest - n_blocks + 1, latest + 1)):
+        row = client.get_block(block_num)
+        if row:
+            rows.append(row)
+        if (i + 1) % 100 == 0:
+            print(f"      Fetched {i + 1}/{n_blocks} blocks ({len(rows)} valid) ...")
 
     if len(rows) < n_blocks:
-        warnings.warn(f"Requested {n_blocks} blocks but only got {len(rows)}")
+        warnings.warn(f"Requested {n_blocks} blocks but only got {len(rows)} valid (post-EIP-1559) blocks")
 
     print(f"[3/3] Deriving features and writing to {output_path} ...")
     df = derive_features(rows)

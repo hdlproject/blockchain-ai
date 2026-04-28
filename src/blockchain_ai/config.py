@@ -50,6 +50,7 @@ class ServeConfig:
 @dataclass
 class EtherscanConfig:
     base_url: str
+    chain_id: int
     rate_limit_per_sec: int
     timeout_sec: int
 
@@ -131,11 +132,12 @@ def load_config(path: str) -> PipelineConfig:
     etherscan_cfg = None
     if "etherscan" in raw:
         e = raw["etherscan"]
-        for key in ("base_url", "rate_limit_per_sec", "timeout_sec"):
+        for key in ("base_url", "chain_id", "rate_limit_per_sec", "timeout_sec"):
             if key not in e:
                 raise ValueError(f"Config etherscan section missing required key: '{key}'")
         etherscan_cfg = EtherscanConfig(
             base_url=e["base_url"],
+            chain_id=int(e["chain_id"]),
             rate_limit_per_sec=int(e["rate_limit_per_sec"]),
             timeout_sec=int(e["timeout_sec"]),
         )

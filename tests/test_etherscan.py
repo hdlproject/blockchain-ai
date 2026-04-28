@@ -9,7 +9,8 @@ from blockchain_ai.etherscan import EtherscanClient
 def client():
     with patch.dict(os.environ, {"ETHERSCAN_API_KEY": "testkey"}):
         return EtherscanClient(
-            base_url="https://api.etherscan.io/api",
+            base_url="https://api.etherscan.io/v2/api",
+            chain_id=1,
             rate_limit_per_sec=100,  # high limit so tests don't sleep
             timeout_sec=10,
         )
@@ -31,7 +32,7 @@ def _error_response(message):
 
 def test_client_reads_api_key_from_env():
     with patch.dict(os.environ, {"ETHERSCAN_API_KEY": "mykey123"}):
-        c = EtherscanClient("https://api.etherscan.io/api", 5, 10)
+        c = EtherscanClient("https://api.etherscan.io/v2/api", chain_id=1, rate_limit_per_sec=5, timeout_sec=10)
         assert c._api_key == "mykey123"
 
 
@@ -39,7 +40,7 @@ def test_client_raises_if_api_key_missing():
     env = {k: v for k, v in os.environ.items() if k != "ETHERSCAN_API_KEY"}
     with patch.dict(os.environ, env, clear=True):
         with pytest.raises(RuntimeError, match="ETHERSCAN_API_KEY"):
-            EtherscanClient("https://api.etherscan.io/api", 5, 10)
+            EtherscanClient("https://api.etherscan.io/v2/api", chain_id=1, rate_limit_per_sec=5, timeout_sec=10)
 
 
 def test_get_latest_block_number(client):
@@ -66,39 +67,50 @@ def test_get_latest_block_number_raises_on_api_error(client):
             client.get_latest_block_number()
 
 
-def test_get_fee_history_returns_list_of_dicts(client):
-    fee_history_result = {
-        "oldestBlock": "0xf4230",
-        "baseFeePerGas": ["0x6fc23ac00", "0x6d54e9800", "0x0"],
-        "gasUsedRatio": [0.95, 0.50],
+def test_get_block_returns_dict(client):
+    block_result = {
+        "number": "0xf4240",
+        "baseFeePerGas": "0x6fc23ac00",
+        "gasUsed": "0x1e8480",
+        "gasLimit": "0x3938700",
+        "timestamp": "0x65a1b2c3",
     }
     with patch("blockchain_ai.etherscan.requests.get") as mock_get:
-        mock_get.return_value = _ok_response(fee_history_result)
-        result = client.get_fee_history(block_count=2, newest_block=0xf4240)
-        # last entry in baseFeePerGas is the next block prediction — excluded
-        assert len(result) == 2
-        assert "base_fee_per_gas" in result[0]
-        assert "gas_used_ratio" in result[0]
-        assert "block_number" in result[0]
+        mock_get.return_value = _ok_response(block_result)
+        result = client.get_block(0xf4240)
+        assert result is not None
+        assert "base_fee_per_gas" in result
+        assert "gas_used_ratio" in result
+        assert "block_number" in result
+        assert "timestamp" in result
 
 
-def test_get_fee_history_skips_pre_eip1559_blocks(client):
-    fee_history_result = {
-        "oldestBlock": "0xf4230",
-        "baseFeePerGas": ["0x0", "0x6d54e9800", "0x0"],
-        "gasUsedRatio": [0.95, 0.50],
+def test_get_block_skips_pre_eip1559_blocks(client):
+    block_result = {
+        "number": "0xf4240",
+        "baseFeePerGas": "0x0",
+        "gasUsed": "0x1e8480",
+        "gasLimit": "0x3938700",
+        "timestamp": "0x65a1b2c3",
     }
     with patch("blockchain_ai.etherscan.requests.get") as mock_get:
-        mock_get.return_value = _ok_response(fee_history_result)
-        result = client.get_fee_history(block_count=2, newest_block=0xf4240)
-        # block with baseFeePerGas == 0x0 (first entry) is pre-EIP-1559 — skipped
-        assert all(r["base_fee_per_gas"] > 0 for r in result)
+        mock_get.return_value = _ok_response(block_result)
+        result = client.get_block(0xf4240)
+        assert result is None
+
+
+def test_get_block_returns_none_for_missing_block(client):
+    with patch("blockchain_ai.etherscan.requests.get") as mock_get:
+        mock_get.return_value = _ok_response(None)
+        result = client.get_block(0xf4240)
+        assert result is None
 
 
 def test_rate_limiting_sleeps_between_calls(client):
     slow_client = EtherscanClient.__new__(EtherscanClient)
     slow_client._api_key = "testkey"
-    slow_client._base_url = "https://api.etherscan.io/api"
+    slow_client._base_url = "https://api.etherscan.io/v2/api"
+    slow_client._chain_id = 1
     slow_client._sleep_secs = 0.2
     slow_client._timeout = 10
 

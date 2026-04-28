@@ -230,7 +230,8 @@ def test_load_config_without_serve_section(tmp_path):
 
 _ETHERSCAN_YAML = """
 etherscan:
-  base_url: https://api.etherscan.io/api
+  base_url: https://api.etherscan.io/v2/api
+  chain_id: 1
   rate_limit_per_sec: 5
   timeout_sec: 10
 
@@ -260,7 +261,8 @@ def test_load_config_with_etherscan_section(tmp_path):
     cfg = load_config(path)
     assert cfg.etherscan is not None
     assert isinstance(cfg.etherscan, EtherscanConfig)
-    assert cfg.etherscan.base_url == "https://api.etherscan.io/api"
+    assert cfg.etherscan.base_url == "https://api.etherscan.io/v2/api"
+    assert cfg.etherscan.chain_id == 1
     assert cfg.etherscan.rate_limit_per_sec == 5
     assert cfg.etherscan.timeout_sec == 10
 

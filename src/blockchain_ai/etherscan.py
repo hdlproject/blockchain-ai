@@ -5,12 +5,13 @@ from blockchain_ai.config import EtherscanConfig
 
 
 class EtherscanClient:
-    def __init__(self, base_url: str, rate_limit_per_sec: int, timeout_sec: int):
+    def __init__(self, base_url: str, chain_id: int, rate_limit_per_sec: int, timeout_sec: int):
         api_key = os.environ.get("ETHERSCAN_API_KEY")
         if not api_key:
             raise RuntimeError("ETHERSCAN_API_KEY environment variable is not set")
         self._api_key = api_key
         self._base_url = base_url
+        self._chain_id = chain_id
         self._sleep_secs = 1.0 / rate_limit_per_sec
         self._timeout = timeout_sec
 
@@ -18,6 +19,7 @@ class EtherscanClient:
     def from_config(cls, config: EtherscanConfig) -> "EtherscanClient":
         return cls(
             base_url=config.base_url,
+            chain_id=config.chain_id,
             rate_limit_per_sec=config.rate_limit_per_sec,
             timeout_sec=config.timeout_sec,
         )
@@ -25,6 +27,7 @@ class EtherscanClient:
     def _get(self, params: dict) -> dict:
         time.sleep(self._sleep_secs)
         params["apikey"] = self._api_key
+        params["chainid"] = self._chain_id
         response = requests.get(self._base_url, params=params, timeout=self._timeout)
         if response.status_code != 200:
             raise RuntimeError(f"Etherscan HTTP error: {response.status_code}")
@@ -37,27 +40,26 @@ class EtherscanClient:
         result = self._get({"module": "proxy", "action": "eth_blockNumber"})
         return int(result, 16)
 
-    def get_fee_history(self, block_count: int, newest_block: int) -> list[dict]:
+    def get_block(self, block_number: int) -> dict | None:
         result = self._get({
             "module": "proxy",
-            "action": "eth_feeHistory",
-            "blockCount": hex(block_count),
-            "newestBlock": hex(newest_block),
-            "rewardPercentiles": "",
+            "action": "eth_getBlockByNumber",
+            "tag": hex(block_number),
+            "boolean": "false",
         })
-        oldest = int(result["oldestBlock"], 16)
-        base_fees = result["baseFeePerGas"]
-        ratios = result["gasUsedRatio"]
-
-        # baseFeePerGas has block_count+1 entries (last is next-block prediction) — zip with ratios
-        rows = []
-        for i, (fee_hex, ratio) in enumerate(zip(base_fees, ratios)):
-            base_fee = int(fee_hex, 16)
-            if base_fee == 0:
-                continue  # pre-EIP-1559 block
-            rows.append({
-                "block_number": oldest + i,
-                "base_fee_per_gas": base_fee,
-                "gas_used_ratio": float(ratio),
-            })
-        return rows
+        if result is None:
+            return None
+        base_fee_hex = result.get("baseFeePerGas")
+        if not base_fee_hex:
+            return None  # pre-EIP-1559 block
+        base_fee = int(base_fee_hex, 16)
+        if base_fee == 0:
+            return None  # pre-EIP-1559 block
+        gas_used = int(result["gasUsed"], 16)
+        gas_limit = int(result["gasLimit"], 16)
+        return {
+            "block_number": block_number,
+            "base_fee_per_gas": base_fee,
+            "gas_used_ratio": gas_used / gas_limit if gas_limit > 0 else 0.0,
+            "timestamp": int(result["timestamp"], 16),
+        }
