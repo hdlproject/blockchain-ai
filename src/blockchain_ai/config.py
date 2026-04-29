@@ -60,6 +60,7 @@ class CollectConfig:
     n_blocks: int
     output_path: str
     checkpoint_every: int = 100
+    max_history_blocks: int = 50_000  # ~7 days of Ethereum blocks
 
 
 @dataclass
@@ -153,6 +154,7 @@ def load_config(path: str) -> PipelineConfig:
             n_blocks=int(c["n_blocks"]),
             output_path=c["output_path"],
             checkpoint_every=int(c.get("checkpoint_every", 100)),
+            max_history_blocks=int(c.get("max_history_blocks", 50_000)),
         )
 
     return PipelineConfig(

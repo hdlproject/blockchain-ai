@@ -42,6 +42,14 @@ def apply_target_shift(df: pd.DataFrame, source_col: str, target_col: str) -> pd
     return df
 
 
+def _trim_csv(output_path: str, max_rows: int) -> None:
+    """Drop oldest rows if CSV exceeds max_rows, keeping the most recent."""
+    df = pd.read_csv(output_path)
+    if len(df) > max_rows:
+        df.tail(max_rows).to_csv(output_path, index=False)
+        print(f"      Trimmed to {max_rows} rows (rolling window)")
+
+
 def _append_new_rows(context_rows: list[dict], new_rows: list[dict], n_appended: int, output_path: str) -> int:
     """Derive features on context+new_rows, apply target shift, append only unwritten rows to CSV."""
     combined = context_rows + new_rows
@@ -75,6 +83,7 @@ def main():
     n_blocks = cfg.collect.n_blocks
     output_path = cfg.collect.output_path
     checkpoint_every = cfg.collect.checkpoint_every
+    max_history_blocks = cfg.collect.max_history_blocks
 
     print(f"[1/3] Fetching latest block number ...")
     latest = client.get_latest_block_number()
@@ -143,6 +152,7 @@ def main():
     print(f"[3/3] Deriving features and writing to {output_path} ...")
     n_appended = _append_new_rows(context_rows, new_rows, n_appended, output_path)
     print(f"      Appended {n_appended} new rows to {output_path}")
+    _trim_csv(output_path, max_history_blocks)
 
 
 if __name__ == "__main__":
