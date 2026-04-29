@@ -59,6 +59,7 @@ class EtherscanConfig:
 class CollectConfig:
     n_blocks: int
     output_path: str
+    checkpoint_every: int = 100
 
 
 @dataclass
@@ -151,6 +152,7 @@ def load_config(path: str) -> PipelineConfig:
         collect_cfg = CollectConfig(
             n_blocks=int(c["n_blocks"]),
             output_path=c["output_path"],
+            checkpoint_every=int(c.get("checkpoint_every", 100)),
         )
 
     return PipelineConfig(

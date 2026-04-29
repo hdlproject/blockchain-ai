@@ -6,6 +6,7 @@ Usage:
     poetry run python scripts/collect_blocks.py --config configs/ethereum-gas-price.yaml
 """
 import argparse
+import signal
 import sys
 import warnings
 from pathlib import Path
@@ -40,6 +41,14 @@ def apply_target_shift(df: pd.DataFrame, source_col: str, target_col: str) -> pd
     return df
 
 
+def _write_csv(rows: list[dict], output_path: str) -> int:
+    df = derive_features(rows)
+    df = apply_target_shift(df, source_col="base_fee_gwei", target_col="base_fee_gwei")
+    Path(output_path).parent.mkdir(parents=True, exist_ok=True)
+    df.to_csv(output_path, index=False)
+    return len(df)
+
+
 def main():
     parser = argparse.ArgumentParser(description="Collect Ethereum blocks from Etherscan")
     parser.add_argument("--config", required=True, help="Path to pipeline YAML config")
@@ -55,30 +64,47 @@ def main():
     client = EtherscanClient.from_config(cfg.etherscan)
     n_blocks = cfg.collect.n_blocks
     output_path = cfg.collect.output_path
+    checkpoint_every = cfg.collect.checkpoint_every
 
     print(f"[1/3] Fetching latest block number ...")
     latest = client.get_latest_block_number()
     print(f"      Latest block: {latest}")
 
+    stop = False
+
+    def _handle_sigint(sig, frame):
+        nonlocal stop
+        print("\n      Interrupted — will write collected data ...")
+        stop = True
+
+    signal.signal(signal.SIGINT, _handle_sigint)
+
     print(f"[2/3] Fetching fee history for {n_blocks} blocks ...")
     rows: list[dict] = []
     for i, block_num in enumerate(range(latest - n_blocks + 1, latest + 1)):
-        row = client.get_block(block_num)
+        if stop:
+            break
+        try:
+            row = client.get_block(block_num)
+        except Exception as exc:
+            warnings.warn(
+                f"Block {block_num} failed after all retries: {exc} — stopping early with {len(rows)} rows collected"
+            )
+            break
         if row:
             rows.append(row)
-        if (i + 1) % 100 == 0:
+        if (i + 1) % checkpoint_every == 0:
             print(f"      Fetched {i + 1}/{n_blocks} blocks ({len(rows)} valid) ...")
+            if len(rows) >= 2:
+                _write_csv(rows, output_path)
+                print(f"      Checkpoint: wrote {len(rows)} rows to {output_path}")
 
     if len(rows) < n_blocks:
         warnings.warn(f"Requested {n_blocks} blocks but only got {len(rows)} valid (post-EIP-1559) blocks")
 
     print(f"[3/3] Deriving features and writing to {output_path} ...")
-    df = derive_features(rows)
-    df = apply_target_shift(df, source_col="base_fee_gwei", target_col="base_fee_gwei")
-
-    Path(output_path).parent.mkdir(parents=True, exist_ok=True)
-    df.to_csv(output_path, index=False)
-    print(f"      Wrote {len(df)} rows to {output_path}")
+    n_written = _write_csv(rows, output_path)
+    print(f"      Wrote {n_written} rows to {output_path}")
 
 
 if __name__ == "__main__":
