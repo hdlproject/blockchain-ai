@@ -20,14 +20,15 @@ load_dotenv()
 from blockchain_ai.config import load_config
 from blockchain_ai.etherscan import EtherscanClient
 
+_TREND_LOOKBACK = 10
+
 
 def derive_features(rows: list[dict]) -> pd.DataFrame:
     df = pd.DataFrame(rows)
     df["base_fee_gwei"] = df["base_fee_per_gas"] / 1e9
     df["hour_of_day"] = pd.to_datetime(df["timestamp"], unit="s", utc=True).dt.hour
     df["day_of_week"] = pd.to_datetime(df["timestamp"], unit="s", utc=True).dt.dayofweek
-    lookback = 10
-    shifted = df["base_fee_gwei"].shift(lookback)
+    shifted = df["base_fee_gwei"].shift(_TREND_LOOKBACK)
     df["base_fee_trend"] = ((df["base_fee_gwei"] - shifted) / shifted).fillna(0.0)
     return df
 
@@ -41,12 +42,21 @@ def apply_target_shift(df: pd.DataFrame, source_col: str, target_col: str) -> pd
     return df
 
 
-def _write_csv(rows: list[dict], output_path: str) -> int:
-    df = derive_features(rows)
+def _append_new_rows(context_rows: list[dict], new_rows: list[dict], n_appended: int, output_path: str) -> int:
+    """Derive features on context+new_rows, apply target shift, append only unwritten rows to CSV."""
+    combined = context_rows + new_rows
+    if len(combined) < 2:
+        return n_appended
+    df = derive_features(combined)
     df = apply_target_shift(df, source_col="base_fee_gwei", target_col="base_fee_gwei")
-    Path(output_path).parent.mkdir(parents=True, exist_ok=True)
-    df.to_csv(output_path, index=False)
-    return len(df)
+    df_new = df.iloc[len(context_rows):]
+    df_to_write = df_new.iloc[n_appended:]
+    if df_to_write.empty:
+        return n_appended
+    output_file = Path(output_path)
+    output_file.parent.mkdir(parents=True, exist_ok=True)
+    df_to_write.to_csv(output_path, mode="a", header=not output_file.exists(), index=False)
+    return n_appended + len(df_to_write)
 
 
 def main():
@@ -70,6 +80,32 @@ def main():
     latest = client.get_latest_block_number()
     print(f"      Latest block: {latest}")
 
+    context_rows: list[dict] = []
+    output_file = Path(output_path)
+    if output_file.exists():
+        existing = pd.read_csv(output_path)
+        if not existing.empty and "block_number" in existing.columns:
+            start_block = int(existing["block_number"].iloc[-1]) + 1
+            tail = existing[["block_number", "base_fee_per_gas", "gas_used_ratio", "timestamp"]].tail(_TREND_LOOKBACK)
+            context_rows = [
+                {
+                    "block_number": int(r["block_number"]),
+                    "base_fee_per_gas": int(r["base_fee_per_gas"]),
+                    "gas_used_ratio": float(r["gas_used_ratio"]),
+                    "timestamp": int(r["timestamp"]),
+                }
+                for _, r in tail.iterrows()
+            ]
+            print(f"      Resuming from block {start_block} ({len(existing)} existing rows in file)")
+        else:
+            start_block = latest - n_blocks + 1
+    else:
+        start_block = latest - n_blocks + 1
+
+    if start_block > latest:
+        print(f"      Already up to date (latest block {latest}). Nothing to fetch.")
+        return
+
     stop = False
 
     def _handle_sigint(sig, frame):
@@ -79,32 +115,34 @@ def main():
 
     signal.signal(signal.SIGINT, _handle_sigint)
 
-    print(f"[2/3] Fetching fee history for {n_blocks} blocks ...")
-    rows: list[dict] = []
-    for i, block_num in enumerate(range(latest - n_blocks + 1, latest + 1)):
+    block_range = range(start_block, latest + 1)
+    n_new = len(block_range)
+    new_rows: list[dict] = []
+    n_appended = 0
+    print(f"[2/3] Fetching {n_new} new blocks ({start_block} → {latest}) ...")
+    for i, block_num in enumerate(block_range):
         if stop:
             break
         try:
             row = client.get_block(block_num)
         except Exception as exc:
             warnings.warn(
-                f"Block {block_num} failed after all retries: {exc} — stopping early with {len(rows)} rows collected"
+                f"Block {block_num} failed after all retries: {exc} — stopping early with {len(new_rows)} new rows collected"
             )
             break
         if row:
-            rows.append(row)
+            new_rows.append(row)
         if (i + 1) % checkpoint_every == 0:
-            print(f"      Fetched {i + 1}/{n_blocks} blocks ({len(rows)} valid) ...")
-            if len(rows) >= 2:
-                _write_csv(rows, output_path)
-                print(f"      Checkpoint: wrote {len(rows)} rows to {output_path}")
+            print(f"      Fetched {i + 1}/{n_new} new blocks ({len(new_rows)} valid) ...")
+            n_appended = _append_new_rows(context_rows, new_rows, n_appended, output_path)
+            print(f"      Checkpoint: appended up to {n_appended} rows to {output_path}")
 
-    if len(rows) < n_blocks:
-        warnings.warn(f"Requested {n_blocks} blocks but only got {len(rows)} valid (post-EIP-1559) blocks")
+    if len(new_rows) < n_new:
+        warnings.warn(f"Requested {n_new} new blocks but only fetched {len(new_rows)} valid (post-EIP-1559) blocks")
 
     print(f"[3/3] Deriving features and writing to {output_path} ...")
-    n_written = _write_csv(rows, output_path)
-    print(f"      Wrote {n_written} rows to {output_path}")
+    n_appended = _append_new_rows(context_rows, new_rows, n_appended, output_path)
+    print(f"      Appended {n_appended} new rows to {output_path}")
 
 
 if __name__ == "__main__":
