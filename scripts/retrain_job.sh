@@ -13,5 +13,8 @@ python scripts/run_pipeline.py \
   --config "${CONFIG}"
 
 echo "[3/3] Uploading model to gs://${BUCKET}/model.joblib ..."
-gsutil cp models/model.joblib "gs://${BUCKET}/model.joblib"
+python -c "
+from google.cloud import storage; import os
+storage.Client().bucket(os.environ['GCS_BUCKET']).blob('model.joblib').upload_from_filename('models/model.joblib')
+"
 echo "Done."

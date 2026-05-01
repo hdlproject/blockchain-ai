@@ -68,17 +68,30 @@ gcloud run jobs add-iam-policy-binding "${JOB}" \
   --project "${PROJECT_ID}"
 
 echo "[5/5] Setting up Cloud Scheduler (daily at midnight UTC)..."
-gcloud scheduler jobs create http "${JOB}-schedule" \
-  --location "${REGION}" \
-  --schedule "0 0 * * *" \
-  --uri "https://${REGION}-run.googleapis.com/apis/run.googleapis.com/v1/namespaces/${PROJECT_ID}/jobs/${JOB}:run" \
-  --http-method POST \
-  --oauth-service-account-email "${SA}" \
-  --project "${PROJECT_ID}" 2>/dev/null || \
-gcloud scheduler jobs update http "${JOB}-schedule" \
-  --location "${REGION}" \
-  --schedule "0 0 * * *" \
-  --project "${PROJECT_ID}"
+gcloud services enable cloudscheduler.googleapis.com --project "${PROJECT_ID}"
+SCHEDULE_URI="https://${REGION}-run.googleapis.com/apis/run.googleapis.com/v1/namespaces/${PROJECT_ID}/jobs/${JOB}:run"
+EXISTING_SCHEDULE=$(gcloud scheduler jobs describe "${JOB}-schedule" \
+  --location "${REGION}" --project "${PROJECT_ID}" \
+  --format "value(name)" 2>/dev/null || true)
+if [[ -n "${EXISTING_SCHEDULE}" ]]; then
+  echo "      Scheduler job exists — updating."
+  gcloud scheduler jobs update http "${JOB}-schedule" \
+    --location "${REGION}" \
+    --schedule "0 0 * * *" \
+    --uri "${SCHEDULE_URI}" \
+    --http-method POST \
+    --oauth-service-account-email "${SA}" \
+    --project "${PROJECT_ID}"
+else
+  echo "      Scheduler job not found — creating."
+  gcloud scheduler jobs create http "${JOB}-schedule" \
+    --location "${REGION}" \
+    --schedule "0 0 * * *" \
+    --uri "${SCHEDULE_URI}" \
+    --http-method POST \
+    --oauth-service-account-email "${SA}" \
+    --project "${PROJECT_ID}"
+fi
 
 echo ""
 echo "Done."

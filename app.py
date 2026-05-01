@@ -33,15 +33,21 @@ feature_cols: list[str] = _cfg.ingest.feature_cols
 
 app = FastAPI(title=serve.title, description=serve.description, version="0.1.0")
 _raw_model_path = os.environ.get("MODEL_PATH", serve.model_path)
-if _raw_model_path.startswith("gs://"):
-    import subprocess
-    import tempfile
-    _tmp = tempfile.NamedTemporaryFile(suffix=".joblib", delete=False)
-    subprocess.run(["gsutil", "cp", _raw_model_path, _tmp.name], check=True)
-    _model_path = _tmp.name
-else:
-    _model_path = _raw_model_path
-model = joblib.load(_model_path)
+model = None
+try:
+    if _raw_model_path.startswith("gs://"):
+        import tempfile
+        from google.cloud import storage as gcs
+        from google.api_core.exceptions import NotFound
+        _tmp = tempfile.NamedTemporaryFile(suffix=".joblib", delete=False)
+        _bucket_name, _, _blob_path = _raw_model_path[5:].partition("/")
+        gcs.Client().bucket(_bucket_name).blob(_blob_path).download_to_filename(_tmp.name)
+        _model_path = _tmp.name
+    else:
+        _model_path = _raw_model_path
+    model = joblib.load(_model_path)
+except Exception as exc:
+    print(f"WARNING: model could not be loaded ({exc}). Prediction endpoints will return 503.")
 
 
 # --- dynamic Pydantic model built from serve.fields ---
@@ -75,6 +81,8 @@ def _to_response(wei: float) -> dict:
 
 
 def _predict_df(df: pd.DataFrame) -> np.ndarray:
+    if model is None:
+        raise HTTPException(status_code=503, detail="Model not available yet. The retrain job may not have run.")
     missing = [c for c in feature_cols if c not in df.columns]
     if missing:
         raise HTTPException(status_code=422, detail=f"Missing required columns: {missing}")
