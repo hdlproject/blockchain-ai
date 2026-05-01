@@ -47,7 +47,11 @@ API_URL=$(gcloud run services describe "${SERVICE}" \
   --project "${PROJECT_ID}" --format "value(status.url)")
 
 echo "[2/6] Building and deploying Streamlit UI..."
-gcloud builds submit --tag "${UI_IMAGE}" --project "${PROJECT_ID}" -f Dockerfile.ui .
+gcloud builds submit \
+  --config cloudbuild.ui.yaml \
+  --substitutions "_IMAGE=${UI_IMAGE}" \
+  --project "${PROJECT_ID}" \
+  .
 gcloud run deploy "${UI_SERVICE}" \
   --image "${UI_IMAGE}" \
   --platform managed \
