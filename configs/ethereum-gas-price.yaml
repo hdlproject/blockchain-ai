@@ -16,7 +16,7 @@ ingest:
     - day_of_week
     - base_fee_trend
   fill_zero_cols: []
-  target_col: log_base_fee_gwei
+  target_col: log_next_base_fee_gwei
 
 train:
   target_col: log_base_fee_gwei

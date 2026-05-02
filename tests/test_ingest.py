@@ -56,6 +56,29 @@ def test_load_and_clean_adds_log_target(tmp_path):
     assert abs(result["log_base_fee_gwei"].iloc[0] - expected) < 1e-6
 
 
+def test_load_and_clean_target_outside_feature_cols(tmp_path):
+    """Target source column not in feature_cols — the production fix for data leakage."""
+    config = IngestConfig(
+        feature_cols=["base_fee_gwei", "gas_used_ratio", "hour_of_day", "day_of_week", "base_fee_trend"],
+        fill_zero_cols=[],
+        target_col="log_next_base_fee_gwei",
+    )
+    df = _minimal_df()
+    df["next_base_fee_gwei"] = [12.0]
+    csv_path = _make_csv(tmp_path, df)
+    out_path = str(tmp_path / "out.csv")
+
+    result = load_and_clean(csv_path, out_path, config)
+
+    # feature base_fee_gwei must be unchanged (current block, not next)
+    assert result["base_fee_gwei"].iloc[0] == pytest.approx(10.0)
+    # target derived from next_base_fee_gwei, not from base_fee_gwei
+    assert "log_next_base_fee_gwei" in result.columns
+    assert abs(result["log_next_base_fee_gwei"].iloc[0] - np.log1p(12.0)) < 1e-6
+    # next_base_fee_gwei must not appear as a feature column
+    assert "next_base_fee_gwei" not in result.columns
+
+
 def test_load_and_clean_fills_zero_cols(tmp_path):
     config = IngestConfig(
         feature_cols=["base_fee_gwei", "gas_used_ratio"],

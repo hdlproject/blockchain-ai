@@ -60,15 +60,17 @@ def test_derive_features_adds_base_fee_trend(tmp_path):
 
 def test_apply_target_shift_adds_target_column():
     df = pd.DataFrame({"base_fee_gwei": [10.0, 11.0, 12.0, 13.0]})
-    result = apply_target_shift(df, source_col="base_fee_gwei", target_col="base_fee_gwei")
-    assert "base_fee_gwei" in result.columns
-    # target[0] = base_fee_gwei[1] = 11.0
-    assert result["base_fee_gwei"].iloc[0] == pytest.approx(11.0)
+    result = apply_target_shift(df, source_col="base_fee_gwei", target_col="next_base_fee_gwei")
+    assert "next_base_fee_gwei" in result.columns
+    # next_base_fee_gwei[0] = base_fee_gwei[1] = 11.0
+    assert result["next_base_fee_gwei"].iloc[0] == pytest.approx(11.0)
+    # source column must not be overwritten
+    assert result["base_fee_gwei"].iloc[0] == pytest.approx(10.0)
 
 
 def test_apply_target_shift_drops_last_row():
     df = pd.DataFrame({"base_fee_gwei": [10.0, 11.0, 12.0, 13.0]})
-    result = apply_target_shift(df, source_col="base_fee_gwei", target_col="base_fee_gwei")
+    result = apply_target_shift(df, source_col="base_fee_gwei", target_col="next_base_fee_gwei")
     assert len(result) == 3
 
 

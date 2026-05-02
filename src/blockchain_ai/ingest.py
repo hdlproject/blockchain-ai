@@ -11,13 +11,15 @@ def load_and_clean(input_path: str, output_path: str, config: IngestConfig) -> p
 
     df = pd.read_csv(path)
 
+    # extract target before filtering — source col may not be in feature_cols
+    source_col = config.target_col.removeprefix("log_")
+    target_series = np.log1p(df[source_col])
+
     df = df[config.feature_cols].copy()
     if config.fill_zero_cols:
         df[config.fill_zero_cols] = df[config.fill_zero_cols].fillna(0.0)
 
-    # target_col is "log_<source_col>" — derive it from the source column
-    source_col = config.target_col.removeprefix("log_")
-    df[config.target_col] = np.log1p(df[source_col])
+    df[config.target_col] = target_series.values
 
     Path(output_path).parent.mkdir(parents=True, exist_ok=True)
     df.to_csv(output_path, index=False)
