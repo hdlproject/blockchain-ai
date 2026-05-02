@@ -29,7 +29,7 @@ def _load_metrics_gcs(bucket_name: str) -> dict | None:
 
 
 def predict_latest(api_url: str) -> dict:
-    resp = requests.get(f"{api_url}/predict/latest", timeout=10)
+    resp = requests.get(f"{api_url}/predict/latest", timeout=60)
     resp.raise_for_status()
     return resp.json()
 

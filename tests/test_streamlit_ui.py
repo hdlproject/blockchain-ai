@@ -38,7 +38,7 @@ def test_predict_latest_calls_correct_endpoint():
     mock_resp.raise_for_status = MagicMock()
     with patch("ui.streamlit_app.requests.get", return_value=mock_resp) as mock_get:
         result = predict_latest("http://localhost:8000")
-    mock_get.assert_called_once_with("http://localhost:8000/predict/latest", timeout=10)
+    mock_get.assert_called_once_with("http://localhost:8000/predict/latest", timeout=60)
     assert result["block_number"] == 12345678
     assert result["predicted_predicted_next-block_base_fee_gwei"] == 15.5
 
