@@ -72,18 +72,38 @@ def main() -> None:
     with tab1:
         st.header("Live Prediction")
         st.write("Fetches the latest Ethereum block and predicts the next base fee automatically.")
+        st.caption("Fetches 11 blocks from Etherscan — typically takes 15–30 seconds.")
         if st.button("Fetch latest block & predict"):
-            with st.spinner("Fetching latest block..."):
+            with st.status("Fetching latest block data...", expanded=True) as status:
                 try:
+                    st.write("Calling Etherscan API for the last 10 blocks...")
                     result = predict_latest(st.session_state.api_url)
-                    st.success("Prediction complete")
+                    st.write("Running model inference...")
+                    status.update(label="Done!", state="complete", expanded=False)
                     _render_prediction(result)
                     st.info(f"Block number: {result.get('block_number', 'N/A')}")
                 except requests.ConnectionError:
-                    st.error("Could not connect to API. Is the FastAPI server running?")
+                    status.update(label="Connection failed", state="error")
+                    st.error(
+                        f"Could not connect to the API at `{st.session_state.api_url}`. "
+                        "Is the FastAPI server running?"
+                    )
+                except requests.Timeout:
+                    status.update(label="Request timed out", state="error")
+                    st.error(
+                        "The request timed out (60s). Etherscan may be slow right now — please try again."
+                    )
                 except requests.HTTPError as e:
+                    code = e.response.status_code if e.response else "?"
                     detail = e.response.json().get("detail", str(e)) if e.response else str(e)
-                    st.error(f"API error {e.response.status_code}: {detail}")
+                    status.update(label=f"API error {code}", state="error")
+                    st.error(f"**HTTP {code}:** {detail}")
+                    if code == 503:
+                        st.warning("Check that `ETHERSCAN_API_KEY` is set and the model has been trained.")
+                except Exception as e:
+                    status.update(label="Unexpected error", state="error")
+                    with st.expander("Error details"):
+                        st.exception(e)
 
     with tab2:
         st.header("Manual Prediction")
@@ -117,16 +137,27 @@ def main() -> None:
                 "day_of_week": day_of_week,
                 "base_fee_trend": base_fee_trend,
             }
-            with st.spinner("Predicting..."):
+            with st.spinner("Running prediction..."):
                 try:
                     result = predict_manual(st.session_state.api_url, payload)
                     st.success("Prediction complete")
                     _render_prediction(result)
                 except requests.ConnectionError:
-                    st.error("Could not connect to API. Is the FastAPI server running?")
+                    st.error(
+                        f"Could not connect to the API at `{st.session_state.api_url}`. "
+                        "Is the FastAPI server running?"
+                    )
+                except requests.Timeout:
+                    st.error("The request timed out. Please try again.")
                 except requests.HTTPError as e:
+                    code = e.response.status_code if e.response else "?"
                     detail = e.response.json().get("detail", str(e)) if e.response else str(e)
-                    st.error(f"API error {e.response.status_code}: {detail}")
+                    st.error(f"**HTTP {code}:** {detail}")
+                    if code == 503:
+                        st.warning("The model may not be loaded yet. Check that the retrain job has run.")
+                except Exception as e:
+                    with st.expander("Error details"):
+                        st.exception(e)
 
 
 if __name__ == "__main__":
