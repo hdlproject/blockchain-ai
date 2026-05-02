@@ -81,7 +81,7 @@ def _fetch_latest_features() -> pd.DataFrame:
     df["day_of_week"] = pd.to_datetime(df["timestamp"], unit="s", utc=True).dt.dayofweek
     shifted = df["base_fee_gwei"].shift(_TREND_LOOKBACK)
     df["base_fee_trend"] = ((df["base_fee_gwei"] - shifted) / shifted).fillna(0.0)
-    return df.iloc[[-1]]
+    return df
 
 
 # --- dynamic Pydantic model built from serve.fields ---
@@ -174,7 +174,12 @@ async def predict_csv(file: UploadFile = File(..., description="CSV file with tr
 )
 def predict_latest():
     df = _fetch_latest_features()
-    preds = _predict_df(df)
+    preds = _predict_df(df.iloc[[-1]])
     result = _to_response(float(preds[0]))
-    result["block_number"] = int(df["block_number"].iloc[0])
+    result["block_number"] = int(df["block_number"].iloc[-1])
+    result["block_history"] = (
+        df[["block_number", "base_fee_gwei"]]
+        .rename(columns={"block_number": "block", "base_fee_gwei": "base_fee_gwei"})
+        .to_dict(orient="records")
+    )
     return result

@@ -2,6 +2,8 @@ import json
 import os
 from pathlib import Path
 
+import altair as alt
+import pandas as pd
 import requests
 import streamlit as st
 
@@ -46,6 +48,43 @@ def _render_prediction(result: dict) -> None:
     col2.metric("Predicted Base Fee (Wei)", f"{result[f'predicted_{_TARGET_KEY}_wei']:.0f}")
 
 
+def _render_base_fee_chart(result: dict) -> None:
+    history = result.get("block_history")
+    if not history:
+        return
+
+    predicted_gwei = result[f"predicted_{_TARGET_KEY}_gwei"]
+    last_block = history[-1]["block"]
+
+    hist_df = pd.DataFrame(history).assign(label="Historical")
+    pred_df = pd.DataFrame([{
+        "block": last_block + 1,
+        "base_fee_gwei": predicted_gwei,
+        "label": "Predicted",
+    }])
+    chart_df = pd.concat([hist_df, pred_df], ignore_index=True)
+
+    color_scale = alt.Scale(domain=["Historical", "Predicted"], range=["steelblue", "#e05c5c"])
+
+    line = (
+        alt.Chart(hist_df)
+        .mark_line(color="steelblue")
+        .encode(x=alt.X("block:O", title="Block Number"), y=alt.Y("base_fee_gwei:Q", title="Base Fee (Gwei)"))
+    )
+    dots = (
+        alt.Chart(chart_df)
+        .mark_point(filled=True, size=80)
+        .encode(
+            x=alt.X("block:O"),
+            y=alt.Y("base_fee_gwei:Q"),
+            color=alt.Color("label:N", scale=color_scale, title=""),
+            tooltip=["block:O", alt.Tooltip("base_fee_gwei:Q", format=".4f"), "label:N"],
+        )
+    )
+
+    st.altair_chart(line + dots, use_container_width=True)
+
+
 def main() -> None:
     st.set_page_config(page_title="Ethereum Gas Price Predictor", layout="wide")
 
@@ -81,6 +120,7 @@ def main() -> None:
                     st.write("Running model inference...")
                     status.update(label="Done!", state="complete", expanded=False)
                     _render_prediction(result)
+                    _render_base_fee_chart(result)
                     st.info(f"Block number: {result.get('block_number', 'N/A')}")
                 except requests.ConnectionError:
                     status.update(label="Connection failed", state="error")
