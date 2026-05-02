@@ -31,16 +31,42 @@ def test_load_metrics_invalid_json(tmp_path):
 def test_predict_latest_calls_correct_endpoint():
     mock_resp = MagicMock()
     mock_resp.json.return_value = {
-        "predicted_predicted_next-block_base_fee_gwei": 15.5,
-        "predicted_predicted_next-block_base_fee_wei": 15500000000.0,
         "block_number": 12345678,
+        "block_history": [{"block": 12345668 + i, "base_fee_gwei": 15.0 + i * 0.1} for i in range(11)],
+        "predictions": [
+            {"step": 1, "block_number": 12345679, "base_fee_gwei": 15.5,
+             "base_fee_wei": 15500000000.0, "method": "formula"},
+        ],
     }
     mock_resp.raise_for_status = MagicMock()
     with patch("ui.streamlit_app.requests.get", return_value=mock_resp) as mock_get:
         result = predict_latest("http://localhost:8000")
-    mock_get.assert_called_once_with("http://localhost:8000/predict/latest", timeout=60)
+    mock_get.assert_called_once_with(
+        "http://localhost:8000/predict/latest", params={"n_blocks": 1}, timeout=60
+    )
     assert result["block_number"] == 12345678
-    assert result["predicted_predicted_next-block_base_fee_gwei"] == 15.5
+    assert result["predictions"][0]["base_fee_gwei"] == 15.5
+    assert result["predictions"][0]["method"] == "formula"
+
+
+def test_predict_latest_passes_n_blocks():
+    mock_resp = MagicMock()
+    mock_resp.json.return_value = {
+        "block_number": 12345678,
+        "block_history": [],
+        "predictions": [
+            {"step": i + 1, "block_number": 12345679 + i, "base_fee_gwei": 15.0,
+             "base_fee_wei": 15000000000.0, "method": "formula" if i == 0 else "model"}
+            for i in range(5)
+        ],
+    }
+    mock_resp.raise_for_status = MagicMock()
+    with patch("ui.streamlit_app.requests.get", return_value=mock_resp) as mock_get:
+        result = predict_latest("http://localhost:8000", n_blocks=5)
+    mock_get.assert_called_once_with(
+        "http://localhost:8000/predict/latest", params={"n_blocks": 5}, timeout=60
+    )
+    assert len(result["predictions"]) == 5
 
 
 def test_predict_manual_calls_correct_endpoint():

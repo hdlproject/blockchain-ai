@@ -13,7 +13,7 @@ import joblib
 import numpy as np
 import pandas as pd
 from dotenv import load_dotenv
-from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi import FastAPI, File, HTTPException, Query, UploadFile
 from fastapi.responses import JSONResponse
 from pydantic import Field, create_model
 
@@ -124,6 +124,53 @@ def _predict_df(df: pd.DataFrame) -> np.ndarray:
     return np.expm1(raw) if serve.log_transform else raw
 
 
+def _predict_n_blocks(df: pd.DataFrame, n: int) -> list[dict]:
+    last = df.iloc[-1]
+    last_block = int(last["block_number"])
+    last_timestamp = float(last["timestamp"])
+    gas_used_ratio = float(last["gas_used_ratio"])
+
+    # rolling fee window — seeded with historical values for trend lookback
+    rolling_fees: list[float] = list(df["base_fee_gwei"].values)
+
+    predictions = []
+    for step in range(1, n + 1):
+        prev_fee = rolling_fees[-1]
+        block_number = last_block + step
+        timestamp = last_timestamp + step * 12
+
+        if step == 1:
+            base_fee = prev_fee * (1 + (gas_used_ratio - 0.5) / 4)
+            method = "formula"
+        else:
+            dt = pd.Timestamp(timestamp, unit="s", tz="UTC")
+            lookback = len(rolling_fees) - 1 - _TREND_LOOKBACK
+            if lookback >= 0 and rolling_fees[lookback] > 0:
+                trend = (prev_fee - rolling_fees[lookback]) / rolling_fees[lookback]
+            else:
+                trend = 0.0
+            features = pd.DataFrame([{
+                "base_fee_gwei": prev_fee,
+                "gas_used_ratio": gas_used_ratio,
+                "hour_of_day": dt.hour,
+                "day_of_week": dt.dayofweek,
+                "base_fee_trend": trend,
+            }])
+            base_fee = float(_predict_df(features)[0])
+            method = "model"
+
+        rolling_fees.append(base_fee)
+        predictions.append({
+            "step": step,
+            "block_number": block_number,
+            "base_fee_gwei": base_fee,
+            "base_fee_wei": base_fee * 1e9,
+            "method": method,
+        })
+
+    return predictions
+
+
 # --- endpoints ---
 
 @app.get("/health")
@@ -172,14 +219,12 @@ async def predict_csv(file: UploadFile = File(..., description="CSV file with tr
         "and returns a prediction. No input required."
     ),
 )
-def predict_latest():
+def predict_latest(n_blocks: int = Query(default=1, ge=1, le=50)):
     df = _fetch_latest_features()
-    preds = _predict_df(df.iloc[[-1]])
-    result = _to_response(float(preds[0]))
-    result["block_number"] = int(df["block_number"].iloc[-1])
-    result["block_history"] = (
-        df[["block_number", "base_fee_gwei"]]
-        .rename(columns={"block_number": "block", "base_fee_gwei": "base_fee_gwei"})
-        .to_dict(orient="records")
-    )
-    return result
+    return {
+        "block_number": int(df["block_number"].iloc[-1]),
+        "block_history": df[["block_number", "base_fee_gwei"]]
+            .rename(columns={"block_number": "block"})
+            .to_dict(orient="records"),
+        "predictions": _predict_n_blocks(df, n_blocks),
+    }

@@ -30,8 +30,8 @@ def _load_metrics_gcs(bucket_name: str) -> dict | None:
         return None
 
 
-def predict_latest(api_url: str) -> dict:
-    resp = requests.get(f"{api_url}/predict/latest", timeout=60)
+def predict_latest(api_url: str, n_blocks: int = 1) -> dict:
+    resp = requests.get(f"{api_url}/predict/latest", params={"n_blocks": n_blocks}, timeout=60)
     resp.raise_for_status()
     return resp.json()
 
@@ -43,46 +43,67 @@ def predict_manual(api_url: str, payload: dict) -> dict:
 
 
 def _render_prediction(result: dict) -> None:
+    step1 = result["predictions"][0]
     col1, col2 = st.columns(2)
-    col1.metric("Predicted Base Fee (Gwei)", f"{result[f'predicted_{_TARGET_KEY}_gwei']:.4f}")
-    col2.metric("Predicted Base Fee (Wei)", f"{result[f'predicted_{_TARGET_KEY}_wei']:.0f}")
+    col1.metric("Next Block Base Fee (Gwei)", f"{step1['base_fee_gwei']:.4f}")
+    col2.metric("Next Block Base Fee (Wei)", f"{step1['base_fee_wei']:.0f}")
 
 
 def _render_base_fee_chart(result: dict) -> None:
     history = result.get("block_history")
-    if not history:
+    predictions = result.get("predictions")
+    if not history or not predictions:
         return
 
-    predicted_gwei = result[f"predicted_{_TARGET_KEY}_gwei"]
     last_block = history[-1]["block"]
 
-    hist_df = pd.DataFrame(history).assign(label="Historical")
+    hist_df = pd.DataFrame(history)
     pred_df = pd.DataFrame([{
-        "block": last_block + 1,
-        "base_fee_gwei": predicted_gwei,
-        "label": "Predicted",
-    }])
-    chart_df = pd.concat([hist_df, pred_df], ignore_index=True)
+        "block": last_block + p["step"],
+        "base_fee_gwei": p["base_fee_gwei"],
+        "method": "Exact (EIP-1559)" if p["method"] == "formula" else "Model estimate",
+    } for p in predictions])
 
-    color_scale = alt.Scale(domain=["Historical", "Predicted"], range=["steelblue", "#e05c5c"])
+    # bridge: connect last historical point to first prediction for visual continuity
+    bridge_df = pd.concat([
+        hist_df.iloc[[-1]][["block", "base_fee_gwei"]],
+        pred_df[["block", "base_fee_gwei"]],
+    ], ignore_index=True)
 
-    line = (
+    color_scale = alt.Scale(
+        domain=["Exact (EIP-1559)", "Model estimate"],
+        range=["#e05c5c", "#e08c3a"],
+    )
+
+    hist_line = (
         alt.Chart(hist_df)
         .mark_line(color="steelblue")
         .encode(x=alt.X("block:O", title="Block Number"), y=alt.Y("base_fee_gwei:Q", title="Base Fee (Gwei)"))
     )
-    dots = (
-        alt.Chart(chart_df)
+    hist_dots = (
+        alt.Chart(hist_df)
+        .mark_point(filled=True, size=60, color="steelblue")
+        .encode(
+            x="block:O", y="base_fee_gwei:Q",
+            tooltip=["block:O", alt.Tooltip("base_fee_gwei:Q", format=".4f")],
+        )
+    )
+    pred_line = (
+        alt.Chart(bridge_df)
+        .mark_line(strokeDash=[5, 3], color="#e05c5c")
+        .encode(x="block:O", y="base_fee_gwei:Q")
+    )
+    pred_dots = (
+        alt.Chart(pred_df)
         .mark_point(filled=True, size=80)
         .encode(
-            x=alt.X("block:O"),
-            y=alt.Y("base_fee_gwei:Q"),
-            color=alt.Color("label:N", scale=color_scale, title=""),
-            tooltip=["block:O", alt.Tooltip("base_fee_gwei:Q", format=".4f"), "label:N"],
+            x="block:O", y="base_fee_gwei:Q",
+            color=alt.Color("method:N", scale=color_scale, title=""),
+            tooltip=["block:O", alt.Tooltip("base_fee_gwei:Q", format=".4f"), "method:N"],
         )
     )
 
-    st.altair_chart(line + dots, use_container_width=True)
+    st.altair_chart(hist_line + hist_dots + pred_line + pred_dots, use_container_width=True)
 
 
 def main() -> None:
@@ -110,18 +131,20 @@ def main() -> None:
 
     with tab1:
         st.header("Live Prediction")
-        st.write("Fetches the latest Ethereum block and predicts the next base fee automatically.")
+        st.write("Fetches the latest Ethereum block and predicts the next N base fees automatically.")
         st.caption("Fetches 11 blocks from Etherscan — typically takes 15–30 seconds.")
+        n_blocks = st.slider("Blocks to predict", min_value=1, max_value=20, value=1,
+                             help="Step 1 uses the exact EIP-1559 formula. Steps 2+ use auto-regression.")
         if st.button("Fetch latest block & predict"):
             with st.status("Fetching latest block data...", expanded=True) as status:
                 try:
                     st.write("Calling Etherscan API for the last 10 blocks...")
-                    result = predict_latest(st.session_state.api_url)
-                    st.write("Running model inference...")
+                    result = predict_latest(st.session_state.api_url, n_blocks=n_blocks)
+                    st.write("Running inference...")
                     status.update(label="Done!", state="complete", expanded=False)
                     _render_prediction(result)
                     _render_base_fee_chart(result)
-                    st.info(f"Block number: {result.get('block_number', 'N/A')}")
+                    st.info(f"Latest block: {result.get('block_number', 'N/A')}")
                 except requests.ConnectionError:
                     status.update(label="Connection failed", state="error")
                     st.error(

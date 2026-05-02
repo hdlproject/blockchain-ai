@@ -32,7 +32,32 @@ The formula is exact for one step but requires `gas_used_ratio[t+1]`, `gas_used_
 - **Internally**, the model approximates the formula's free variable using time-of-day, day-of-week, recent congestion trend, and current utilisation signals.
 - **For 1-block-ahead on a closed block**, the formula wins. For pre-close timing and multi-step planning, ML adds genuine value.
 
-The current implementation covers single-step prediction. Multi-step (next N blocks) is the clearest extension and the scenario where ML justifies itself most strongly.
+The current implementation covers both single-step and multi-step (next N blocks) prediction.
+
+## Multi-step prediction (N blocks ahead)
+
+`GET /predict/latest?n_blocks=N` returns predictions for the next N blocks.
+
+### Step 1 is exact — no model needed
+
+The EIP-1559 base fee for the next block is a **protocol-enforced value**, determined entirely by the latest closed block's data:
+
+```
+base_fee[t+1] = base_fee[t] × (1 + (gas_used_ratio[t] − 0.5) / 4)
+```
+
+Both inputs are known from the latest finalised block. Step 1 is computed with this formula — zero uncertainty.
+
+### Steps 2+ use auto-regression
+
+From step 2 onward, `gas_used_ratio[t+1], gas_used_ratio[t+2], ...` are unknown. The ML model takes over:
+
+- Predicted `base_fee[t+k]` becomes the `base_fee_gwei` input for step `k+1`
+- `gas_used_ratio` is held constant at the last known value
+- `hour_of_day` and `day_of_week` are advanced by 12 seconds per block, so the model's time-of-day demand patterns apply
+- `base_fee_trend` is recomputed from the growing rolling window of predictions
+
+Accuracy is reasonable for ~5–10 blocks (~1–2 minutes) and degrades beyond that as the gas_used_ratio assumption diverges from reality. The UI signals this with a dashed line for model-predicted steps vs a solid line for the formula step.
 
 ---
 
