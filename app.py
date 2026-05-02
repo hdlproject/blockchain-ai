@@ -21,6 +21,7 @@ load_dotenv()
 
 sys.path.insert(0, str(Path(__file__).parent / "src"))
 from blockchain_ai.config import FieldConfig, ServeConfig, load_config
+from blockchain_ai.etherscan import EtherscanClient
 
 _CONFIG_PATH = os.environ.get("CONFIG", "configs/ethereum-gas-price.yaml")
 _cfg = load_config(_CONFIG_PATH)
@@ -32,6 +33,13 @@ serve: ServeConfig = _cfg.serve
 feature_cols: list[str] = _cfg.ingest.feature_cols
 
 app = FastAPI(title=serve.title, description=serve.description, version="0.1.0")
+
+_etherscan_client = None
+if _cfg.etherscan is not None:
+    try:
+        _etherscan_client = EtherscanClient.from_config(_cfg.etherscan)
+    except Exception as exc:
+        print(f"WARNING: Etherscan client could not be initialized ({exc}). /predict/latest will return 503.")
 _raw_model_path = os.environ.get("MODEL_PATH", serve.model_path)
 model = None
 try:
@@ -48,6 +56,32 @@ try:
     model = joblib.load(_model_path)
 except Exception as exc:
     print(f"WARNING: model could not be loaded ({exc}). Prediction endpoints will return 503.")
+
+
+_TREND_LOOKBACK = 10
+
+
+def _fetch_latest_features() -> pd.DataFrame:
+    if _etherscan_client is None:
+        raise HTTPException(
+            status_code=503,
+            detail="Etherscan client not available. Check ETHERSCAN_API_KEY and etherscan config.",
+        )
+    latest = _etherscan_client.get_latest_block_number()
+    rows = []
+    for block_num in range(latest - _TREND_LOOKBACK, latest + 1):
+        row = _etherscan_client.get_block(block_num)
+        if row:
+            rows.append(row)
+    if not rows:
+        raise HTTPException(status_code=503, detail="Could not fetch recent blocks from Etherscan.")
+    df = pd.DataFrame(rows)
+    df["base_fee_gwei"] = df["base_fee_per_gas"] / 1e9
+    df["hour_of_day"] = pd.to_datetime(df["timestamp"], unit="s", utc=True).dt.hour
+    df["day_of_week"] = pd.to_datetime(df["timestamp"], unit="s", utc=True).dt.dayofweek
+    shifted = df["base_fee_gwei"].shift(_TREND_LOOKBACK)
+    df["base_fee_trend"] = ((df["base_fee_gwei"] - shifted) / shifted).fillna(0.0)
+    return df.iloc[[-1]]
 
 
 # --- dynamic Pydantic model built from serve.fields ---
@@ -72,10 +106,10 @@ TransactionModel = create_model(
 )
 
 
-def _to_response(wei: float) -> dict:
+def _to_response(gwei: float) -> dict:
     result = {
-        f"predicted_{serve.target_description.lower().replace(' ', '_')}_wei": wei,
-        f"predicted_{serve.target_description.lower().replace(' ', '_')}_gwei": wei / 1e9,
+        f"predicted_{serve.target_description.lower().replace(' ', '_')}_wei": gwei * 1e9,
+        f"predicted_{serve.target_description.lower().replace(' ', '_')}_gwei": gwei,
     }
     return result
 
@@ -128,3 +162,19 @@ async def predict_csv(file: UploadFile = File(..., description="CSV file with tr
         "count": len(preds),
         "predictions": [_to_response(float(w)) for w in preds.tolist()],
     })
+
+
+@app.get(
+    "/predict/latest",
+    summary=f"Predict {serve.target_description} using live on-chain data",
+    description=(
+        "Fetches the latest block from Etherscan, computes all features automatically, "
+        "and returns a prediction. No input required."
+    ),
+)
+def predict_latest():
+    df = _fetch_latest_features()
+    preds = _predict_df(df)
+    result = _to_response(float(preds[0]))
+    result["block_number"] = int(df["block_number"].iloc[0])
+    return result
