@@ -59,7 +59,7 @@ gcloud run deploy "${UI_SERVICE}" \
   --memory 512Mi --cpu 1 \
   --min-instances 0 --max-instances 2 \
   --allow-unauthenticated \
-  --set-env-vars "API_URL=${API_URL}" \
+  --set-env-vars "API_URL=${API_URL},GCS_BUCKET=${BUCKET}" \
   --project "${PROJECT_ID}"
 
 echo "[3/6] Building retrain job image..."

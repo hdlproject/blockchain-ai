@@ -9,9 +9,9 @@ RUN poetry config virtualenvs.create false \
     && poetry install --only main --no-root --no-interaction
 
 COPY ui/ ./ui/
-COPY reports/ ./reports/
 
 ENV API_URL=http://localhost:8000
+ENV GCS_BUCKET=""
 
 EXPOSE 8080
 CMD ["sh", "-c", "streamlit run ui/streamlit_app.py --server.port=${PORT:-8080} --server.address=0.0.0.0 --server.headless=true"]

@@ -6,6 +6,7 @@ import requests
 import streamlit as st
 
 API_URL_DEFAULT = os.environ.get("API_URL", "http://localhost:8000")
+_GCS_BUCKET = os.environ.get("GCS_BUCKET")
 REPORT_PATH = Path(__file__).parent.parent / "reports" / "report.json"
 _TARGET_KEY = "predicted_next-block_base_fee"
 
@@ -15,6 +16,15 @@ def load_metrics(report_path: Path) -> dict | None:
         with open(report_path) as f:
             return json.load(f)
     except (FileNotFoundError, json.JSONDecodeError):
+        return None
+
+
+def _load_metrics_gcs(bucket_name: str) -> dict | None:
+    try:
+        from google.cloud import storage
+        blob = storage.Client().bucket(bucket_name).blob("report.json")
+        return json.loads(blob.download_as_text())
+    except Exception:
         return None
 
 
@@ -49,7 +59,7 @@ def main() -> None:
 
         st.divider()
         st.subheader("Model Metrics")
-        metrics = load_metrics(REPORT_PATH)
+        metrics = _load_metrics_gcs(_GCS_BUCKET) if _GCS_BUCKET else load_metrics(REPORT_PATH)
         if metrics:
             st.metric("R²", f"{metrics['r2']:.4f}")
             st.metric("RMSE", f"{metrics['rmse']:.6f}")
