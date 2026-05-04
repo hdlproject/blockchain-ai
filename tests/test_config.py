@@ -287,3 +287,86 @@ def test_load_config_without_etherscan_section(tmp_path):
     cfg = load_config(path)
     assert cfg.etherscan is None
     assert cfg.collect is None
+
+
+_CLASSIFICATION_YAML = """
+task: classification
+
+goplus:
+  base_url: https://api.gopluslabs.io/api/v1
+  chain_id: 1
+  rate_limit_per_sec: 2
+  timeout_sec: 30
+
+ofac:
+  alt_url: https://www.treasury.gov/ofac/downloads/alt.csv
+  timeout_sec: 60
+
+forta:
+  graphql_url: https://api.forta.network/graphql
+  timeout_sec: 30
+  max_alerts: 500
+  scam_bot_ids:
+    - "0xabc"
+
+etherscan:
+  base_url: https://api.etherscan.io/v2/api
+  chain_id: 1
+  rate_limit_per_sec: 5
+  timeout_sec: 30
+
+ingest:
+  feature_cols:
+    - tx_count
+    - account_age_days
+  fill_zero_cols: []
+  target_col: label
+
+train:
+  target_col: label
+  model_type: xgboost
+  test_size: 0.2
+  hyperparameters:
+    n_estimators: 10
+
+serve:
+  model_path: models/address_classifier.joblib
+  confidence_threshold: 0.5
+  db_path: data/jobs.db
+"""
+
+
+def test_load_classification_config(tmp_path):
+    path = _write_yaml(tmp_path, _CLASSIFICATION_YAML)
+    cfg = load_config(path)
+    assert cfg.task == "classification"
+    assert cfg.goplus is not None
+    assert cfg.goplus.chain_id == 1
+    assert cfg.ofac is not None
+    assert cfg.ofac.timeout_sec == 60
+    assert cfg.forta is not None
+    assert cfg.forta.max_alerts == 500
+    assert cfg.forta.scam_bot_ids == ["0xabc"]
+    assert cfg.serve is not None
+    assert cfg.serve.confidence_threshold == 0.5
+    assert cfg.serve.db_path == "data/jobs.db"
+
+
+def test_classification_config_missing_goplus_raises(tmp_path):
+    yaml = _CLASSIFICATION_YAML.replace("goplus:\n  base_url: https://api.gopluslabs.io/api/v1\n  chain_id: 1\n  rate_limit_per_sec: 2\n  timeout_sec: 30\n\n", "")
+    path = _write_yaml(tmp_path, yaml)
+    with pytest.raises(ValueError, match="goplus"):
+        load_config(path)
+
+
+def test_regression_config_defaults_task_to_regression(tmp_path):
+    path = _write_yaml(tmp_path, _VALID_YAML)
+    cfg = load_config(path)
+    assert cfg.task == "regression"
+
+
+def test_serve_classification_missing_db_path_raises(tmp_path):
+    yaml = _CLASSIFICATION_YAML.replace("  db_path: data/jobs.db", "")
+    path = _write_yaml(tmp_path, yaml)
+    with pytest.raises(ValueError, match="db_path"):
+        load_config(path)
