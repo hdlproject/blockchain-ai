@@ -119,3 +119,38 @@ def test_rate_limiting_sleeps_between_calls(client):
         mock_get.return_value = _ok_response("0xf4240")
         slow_client.get_latest_block_number()
         mock_sleep.assert_called_once_with(0.2)
+
+
+def test_get_tx_list_returns_list(client):
+    txs = [{"hash": "0xabc", "from": "0x1", "to": "0x2", "value": "1000000000000000000",
+             "isError": "0", "timeStamp": "1700000000", "gasPrice": "20000000000"}]
+    with patch("blockchain_ai.etherscan.requests.get") as mock_get:
+        mock_get.return_value = _ok_response(txs)
+        result = client.get_tx_list("0xsome_address")
+    assert isinstance(result, list)
+    assert len(result) == 1
+    assert result[0]["hash"] == "0xabc"
+
+
+def test_get_tx_list_returns_empty_on_no_transactions(client):
+    with patch("blockchain_ai.etherscan.requests.get") as mock_get:
+        mock_get.return_value = _error_response("No transactions found")
+        result = client.get_tx_list("0xempty")
+    assert result == []
+
+
+def test_get_token_transfers_returns_list(client):
+    transfers = [{"contractAddress": "0xtoken", "from": "0x1", "to": "0x2",
+                  "value": "1000", "timeStamp": "1700000000"}]
+    with patch("blockchain_ai.etherscan.requests.get") as mock_get:
+        mock_get.return_value = _ok_response(transfers)
+        result = client.get_token_transfers("0xsome_address")
+    assert isinstance(result, list)
+    assert result[0]["contractAddress"] == "0xtoken"
+
+
+def test_get_token_transfers_returns_empty_on_no_transfers(client):
+    with patch("blockchain_ai.etherscan.requests.get") as mock_get:
+        mock_get.return_value = _error_response("No transactions found")
+        result = client.get_token_transfers("0xempty")
+    assert result == []

@@ -47,6 +47,28 @@ class EtherscanClient:
         result = self._get({"module": "proxy", "action": "eth_blockNumber"})
         return int(result, 16)
 
+    def get_tx_list(self, address: str) -> list[dict]:
+        try:
+            result = self._get({
+                "module": "account", "action": "txlist",
+                "address": address, "startblock": 0,
+                "endblock": 99999999, "sort": "asc",
+            })
+            return result if isinstance(result, list) else []
+        except RuntimeError:
+            return []
+
+    def get_token_transfers(self, address: str) -> list[dict]:
+        try:
+            result = self._get({
+                "module": "account", "action": "tokentx",
+                "address": address, "startblock": 0,
+                "endblock": 99999999, "sort": "asc",
+            })
+            return result if isinstance(result, list) else []
+        except RuntimeError:
+            return []
+
     def get_block(self, block_number: int) -> dict | None:
         result = self._get({
             "module": "proxy",
