@@ -1,0 +1,61 @@
+task: classification
+
+goplus:
+  base_url: https://api.gopluslabs.io/api/v1
+  chain_id: 1
+  rate_limit_per_sec: 2
+  timeout_sec: 30
+
+ofac:
+  alt_url: https://www.treasury.gov/ofac/downloads/alt.csv
+  timeout_sec: 60
+
+forta:
+  graphql_url: https://api.forta.network/graphql
+  timeout_sec: 30
+  max_alerts: 500
+  scam_bot_ids:
+    - "0x6aa2012744a3eb210fc4e4b794d9df59684d36d502fd9ebb481d58f19b917d51"
+    - "0x4c7e56a9a753e29ca92bd57dd593bdab0c03e762bdd04e2bc578cb82b842c1f3"
+
+etherscan:
+  base_url: https://api.etherscan.io/v2/api
+  chain_id: 1
+  rate_limit_per_sec: 5
+  timeout_sec: 30
+
+ingest:
+  feature_cols:
+    - tx_count
+    - account_age_days
+    - unique_counterparties
+    - avg_tx_value_eth
+    - failed_tx_ratio
+    - contract_creation_count
+    - erc20_token_count
+    - incoming_to_outgoing_ratio
+    - is_contract
+    - hour_entropy
+    - gas_price_avg_gwei
+  fill_zero_cols:
+    - failed_tx_ratio
+    - contract_creation_count
+    - erc20_token_count
+  target_col: label
+
+train:
+  target_col: label
+  model_type: xgboost
+  test_size: 0.2
+  hyperparameters:
+    n_estimators: 300
+    learning_rate: 0.05
+    max_depth: 6
+    subsample: 0.8
+    colsample_bytree: 0.8
+    random_state: 42
+
+serve:
+  model_path: models/address_classifier.joblib
+  confidence_threshold: 0.5
+  db_path: data/jobs.db
