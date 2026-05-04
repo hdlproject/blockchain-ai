@@ -108,3 +108,53 @@ def test_train_model_works_without_stratify_col(tmp_path):
     train_model(str(csv_path), str(model_path), str(test_path), cfg)
 
     assert model_path.exists()
+
+
+def _classification_df():
+    return pd.DataFrame({
+        "tx_count": [100.0, 50.0, 200.0, 10.0, 5.0, 300.0, 80.0, 20.0, 150.0, 60.0,
+                     110.0, 55.0, 210.0, 15.0, 8.0, 310.0, 85.0, 25.0, 155.0, 65.0],
+        "account_age_days": [365.0, 180.0, 730.0, 30.0, 10.0, 1000.0, 400.0, 60.0, 500.0, 200.0,
+                             370.0, 185.0, 735.0, 35.0, 15.0, 1005.0, 405.0, 65.0, 505.0, 205.0],
+        "label": (["sanctioned"] * 7 + ["scammer"] * 7 + ["phishing"] * 6),
+    })
+
+
+def _classification_config():
+    return TrainConfig(
+        target_col="label",
+        model_type="xgboost",
+        stratify_col=None,
+        test_size=0.2,
+        hyperparameters={"n_estimators": 10, "random_state": 42},
+    )
+
+
+def test_train_model_classification_saves_model(tmp_path):
+    csv_path = tmp_path / "features.csv"
+    _classification_df().to_csv(csv_path, index=False)
+    model_path = tmp_path / "model.joblib"
+    test_path = tmp_path / "test.csv"
+    train_model(str(csv_path), str(model_path), str(test_path), _classification_config(), task="classification")
+    assert model_path.exists()
+
+
+def test_train_model_classification_test_split_has_encoded_labels(tmp_path):
+    csv_path = tmp_path / "features.csv"
+    _classification_df().to_csv(csv_path, index=False)
+    model_path = tmp_path / "model.joblib"
+    test_path = tmp_path / "test.csv"
+    train_model(str(csv_path), str(model_path), str(test_path), _classification_config(), task="classification")
+    test_df = pd.read_csv(test_path)
+    assert "label" in test_df.columns
+    assert set(test_df["label"].unique()).issubset({0, 1, 2})
+
+
+def test_train_model_classification_model_has_predict_proba(tmp_path):
+    csv_path = tmp_path / "features.csv"
+    _classification_df().to_csv(csv_path, index=False)
+    model_path = tmp_path / "model.joblib"
+    import joblib as jl
+    train_model(str(csv_path), str(model_path), str(tmp_path / "t.csv"), _classification_config(), task="classification")
+    model = jl.load(model_path)
+    assert hasattr(model, "predict_proba")
