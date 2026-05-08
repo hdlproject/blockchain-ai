@@ -1,10 +1,8 @@
-import io
 from typing import Any
 
 import numpy as np
 import pandas as pd
-from fastapi import APIRouter, File, HTTPException, Query, UploadFile
-from fastapi.responses import JSONResponse
+from fastapi import APIRouter, HTTPException, Query
 from pydantic import Field, create_model
 
 from blockchain_ai.block_features import BlockFeatureExtractor
@@ -102,22 +100,6 @@ def create_router(
     def predict_json(tx: TransactionModel):  # type: ignore[valid-type]
         df = pd.DataFrame([tx.model_dump()])[feature_cols]
         return _to_response(float(_predict_df(df)[0]))
-
-    @router.post(
-        "/predict/batch",
-        summary=f"Predict {serve.target_description} for multiple transactions via CSV",
-        description=f"Upload a CSV with columns: `{'`, `'.join(feature_cols)}`. Returns predictions in the same row order.",
-    )
-    async def predict_csv(file: UploadFile = File(..., description="CSV file with transaction rows.")):
-        if not (file.filename or "").endswith(".csv"):
-            raise HTTPException(status_code=400, detail="Only CSV files are supported.")
-        contents = await file.read()
-        try:
-            df = pd.read_csv(io.BytesIO(contents))
-        except Exception as e:
-            raise HTTPException(status_code=422, detail=f"Failed to parse CSV: {e}")
-        preds = _predict_df(df)
-        return JSONResponse({"count": len(preds), "predictions": [_to_response(float(w)) for w in preds.tolist()]})
 
     @router.get(
         "/predict/latest",
