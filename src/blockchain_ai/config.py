@@ -171,6 +171,8 @@ def load_config(path: str) -> PipelineConfig:
                     raise ValueError(f"Config serve section missing required key: '{key}'")
             serve_cfg = ServeConfig(
                 model_path=s["model_path"],
+                title=s.get("title"),
+                description=s["description"].strip() if s.get("description") else None,
                 confidence_threshold=float(s["confidence_threshold"]),
                 db_path=s["db_path"],
             )
