@@ -57,7 +57,7 @@ def main():
         train_model(processed_path, model_path, test_path, train_config)
 
         print("[4/4] Evaluating model ...")
-        report = evaluate_model(test_path, train_config.target_col, model_path, report_path)
+        report = evaluate_model(test_path, model_path, report_path, cfg)
 
     else:
         features_path = "data/processed/features/address_features.csv"
@@ -72,7 +72,7 @@ def main():
         train_model(features_path, model_path, test_path, cfg.train, task="classification")
 
         print("[2/2] Evaluating model ...")
-        report = evaluate_model(test_path, cfg.train.target_col, model_path, report_path, task="classification")
+        report = evaluate_model(test_path, model_path, report_path, cfg)
 
     print(f"\nPipeline complete. Report:")
     for k, v in report.items():

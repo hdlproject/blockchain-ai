@@ -4,7 +4,24 @@ import numpy as np
 import pandas as pd
 import pytest
 from xgboost import XGBRegressor
+from blockchain_ai.config import IngestConfig, PipelineConfig, ServeConfig, TrainConfig
 from blockchain_ai.evaluate import evaluate_model
+
+
+def _regression_cfg(target_col: str, log_transform: bool = True) -> PipelineConfig:
+    return PipelineConfig(
+        ingest=IngestConfig(feature_cols=[], fill_zero_cols=[], target_col=target_col),
+        train=TrainConfig(target_col=target_col, model_type="xgboost", test_size=0.2, hyperparameters={}),
+        serve=ServeConfig(model_path="", log_transform=log_transform),
+    )
+
+
+def _classification_cfg(target_col: str) -> PipelineConfig:
+    return PipelineConfig(
+        task="classification",
+        ingest=IngestConfig(feature_cols=[], fill_zero_cols=[], target_col=target_col),
+        train=TrainConfig(target_col=target_col, model_type="xgboost", test_size=0.2, hyperparameters={}),
+    )
 
 
 def _make_test_split(tmp_path):
@@ -34,7 +51,7 @@ def test_evaluate_model_saves_report(tmp_path):
     test_path, model_path = _make_test_split(tmp_path)
     report_path = str(tmp_path / "report.json")
 
-    evaluate_model(test_path, "log_gas_price", model_path, report_path)
+    evaluate_model(test_path, model_path, report_path, _regression_cfg("log_gas_price"))
 
     assert (tmp_path / "report.json").exists()
     report = json.loads((tmp_path / "report.json").read_text())
@@ -47,7 +64,7 @@ def test_evaluate_model_report_values_are_floats(tmp_path):
     test_path, model_path = _make_test_split(tmp_path)
     report_path = str(tmp_path / "report.json")
 
-    evaluate_model(test_path, "log_gas_price", model_path, report_path)
+    evaluate_model(test_path, model_path, report_path, _regression_cfg("log_gas_price"))
 
     report = json.loads((tmp_path / "report.json").read_text())
     assert isinstance(report["rmse"], float)
@@ -60,7 +77,7 @@ def test_evaluate_model_metrics_are_in_wei(tmp_path):
     test_path, model_path = _make_test_split(tmp_path)
     report_path = str(tmp_path / "report.json")
 
-    evaluate_model(test_path, "log_gas_price", model_path, report_path)
+    evaluate_model(test_path, model_path, report_path, _regression_cfg("log_gas_price", log_transform=True))
 
     report = json.loads((tmp_path / "report.json").read_text())
     # expm1(23.2) ≈ 1.2e10 Wei — RMSE in log-space would be < 1
@@ -87,11 +104,9 @@ def _make_classification_split(tmp_path):
 def test_evaluate_classification_saves_report(tmp_path):
     test_path, model_path = _make_classification_split(tmp_path)
     report_path = str(tmp_path / "clf_report.json")
-    import json as json_lib
-    from blockchain_ai.evaluate import evaluate_model
-    evaluate_model(test_path, "label", model_path, report_path, task="classification")
+    evaluate_model(test_path, model_path, report_path, _classification_cfg("label"))
     assert (tmp_path / "clf_report.json").exists()
-    report = json_lib.loads((tmp_path / "clf_report.json").read_text())
+    report = json.loads((tmp_path / "clf_report.json").read_text())
     assert "accuracy" in report
     assert "f1_macro" in report
     assert "f1_sanctioned" in report
@@ -101,9 +116,7 @@ def test_evaluate_classification_saves_report(tmp_path):
 
 def test_evaluate_classification_accuracy_is_float(tmp_path):
     test_path, model_path = _make_classification_split(tmp_path)
-    import json as json_lib
-    from blockchain_ai.evaluate import evaluate_model
-    evaluate_model(test_path, "label", model_path, str(tmp_path / "r.json"), task="classification")
-    report = json_lib.loads((tmp_path / "r.json").read_text())
+    evaluate_model(test_path, model_path, str(tmp_path / "r.json"), _classification_cfg("label"))
+    report = json.loads((tmp_path / "r.json").read_text())
     assert isinstance(report["accuracy"], float)
     assert 0.0 <= report["accuracy"] <= 1.0
