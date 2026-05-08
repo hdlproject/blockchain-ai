@@ -4,7 +4,10 @@ import pandas as pd
 import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "scripts"))
-from collect_blocks import derive_features, apply_target_shift
+from collect_blocks import apply_target_shift
+from blockchain_ai.block_features import BlockFeatureExtractor
+
+_extractor = BlockFeatureExtractor()
 
 
 def _raw_rows(n=15):
@@ -22,35 +25,35 @@ def _raw_rows(n=15):
 
 def test_derive_features_adds_base_fee_gwei(tmp_path):
     rows = _raw_rows()
-    df = derive_features(rows)
+    df = _extractor.derive(rows)
     assert "base_fee_gwei" in df.columns
     assert abs(df["base_fee_gwei"].iloc[0] - 10.0) < 1e-6
 
 
 def test_derive_features_preserves_gas_used_ratio(tmp_path):
     rows = _raw_rows()
-    df = derive_features(rows)
+    df = _extractor.derive(rows)
     assert "gas_used_ratio" in df.columns
     assert df["gas_used_ratio"].iloc[0] == pytest.approx(0.5)
 
 
 def test_derive_features_adds_hour_of_day(tmp_path):
     rows = _raw_rows()
-    df = derive_features(rows)
+    df = _extractor.derive(rows)
     assert "hour_of_day" in df.columns
     assert 0 <= df["hour_of_day"].iloc[0] <= 23
 
 
 def test_derive_features_adds_day_of_week(tmp_path):
     rows = _raw_rows()
-    df = derive_features(rows)
+    df = _extractor.derive(rows)
     assert "day_of_week" in df.columns
     assert 0 <= df["day_of_week"].iloc[0] <= 6
 
 
 def test_derive_features_adds_base_fee_trend(tmp_path):
     rows = _raw_rows(15)
-    df = derive_features(rows)
+    df = _extractor.derive(rows)
     assert "base_fee_trend" in df.columns
     # first 10 rows have no 10-block lookback — filled with 0.0
     assert df["base_fee_trend"].iloc[0] == pytest.approx(0.0)

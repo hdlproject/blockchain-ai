@@ -7,9 +7,8 @@ from fastapi import APIRouter, File, HTTPException, Query, UploadFile
 from fastapi.responses import JSONResponse
 from pydantic import Field, create_model
 
+from blockchain_ai.block_features import BlockFeatureExtractor
 from blockchain_ai.config import FieldConfig, ServeConfig
-
-_TREND_LOOKBACK = 10
 _TYPE_MAP = {"float": float, "int": int}
 
 
@@ -33,6 +32,7 @@ def create_router(
     etherscan_client,
 ) -> APIRouter:
     router = APIRouter()
+    _block_extractor = BlockFeatureExtractor(etherscan_client)
 
     TransactionModel = create_model(
         "Transaction",
@@ -58,18 +58,10 @@ def create_router(
                 status_code=503,
                 detail="Etherscan client not available. Check ETHERSCAN_API_KEY and etherscan config.",
             )
-        latest = etherscan_client.get_latest_block_number()
-        rows = [etherscan_client.get_block(n) for n in range(latest - _TREND_LOOKBACK, latest + 1)]
-        rows = [r for r in rows if r]
-        if not rows:
-            raise HTTPException(status_code=503, detail="Could not fetch recent blocks from Etherscan.")
-        df = pd.DataFrame(rows)
-        df["base_fee_gwei"] = df["base_fee_per_gas"] / 1e9
-        df["hour_of_day"] = pd.to_datetime(df["timestamp"], unit="s", utc=True).dt.hour
-        df["day_of_week"] = pd.to_datetime(df["timestamp"], unit="s", utc=True).dt.dayofweek
-        shifted = df["base_fee_gwei"].shift(_TREND_LOOKBACK)
-        df["base_fee_trend"] = ((df["base_fee_gwei"] - shifted) / shifted).fillna(0.0)
-        return df
+        try:
+            return _block_extractor.fetch_latest()
+        except RuntimeError as exc:
+            raise HTTPException(status_code=503, detail=str(exc))
 
     def _predict_n_blocks(df: pd.DataFrame, n: int) -> list[dict]:
         last = df.iloc[-1]
@@ -87,7 +79,7 @@ def create_router(
                 method = "formula"
             else:
                 dt = pd.Timestamp(timestamp, unit="s", tz="UTC")
-                lookback = len(rolling_fees) - 1 - _TREND_LOOKBACK
+                lookback = len(rolling_fees) - 1 - BlockFeatureExtractor.TREND_LOOKBACK
                 trend = (
                     (prev_fee - rolling_fees[lookback]) / rolling_fees[lookback]
                     if lookback >= 0 and rolling_fees[lookback] > 0

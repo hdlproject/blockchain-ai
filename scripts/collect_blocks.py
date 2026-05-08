@@ -17,20 +17,11 @@ from dotenv import load_dotenv
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 load_dotenv()
 
+from blockchain_ai.block_features import BlockFeatureExtractor
 from blockchain_ai.config import load_config
 from blockchain_ai.etherscan import EtherscanClient
 
-_TREND_LOOKBACK = 10
-
-
-def derive_features(rows: list[dict]) -> pd.DataFrame:
-    df = pd.DataFrame(rows)
-    df["base_fee_gwei"] = df["base_fee_per_gas"] / 1e9
-    df["hour_of_day"] = pd.to_datetime(df["timestamp"], unit="s", utc=True).dt.hour
-    df["day_of_week"] = pd.to_datetime(df["timestamp"], unit="s", utc=True).dt.dayofweek
-    shifted = df["base_fee_gwei"].shift(_TREND_LOOKBACK)
-    df["base_fee_trend"] = ((df["base_fee_gwei"] - shifted) / shifted).fillna(0.0)
-    return df
+_extractor = BlockFeatureExtractor()
 
 
 def apply_target_shift(df: pd.DataFrame, source_col: str, target_col: str) -> pd.DataFrame:
@@ -55,7 +46,7 @@ def _append_new_rows(context_rows: list[dict], new_rows: list[dict], n_appended:
     combined = context_rows + new_rows
     if len(combined) < 2:
         return n_appended
-    df = derive_features(combined)
+    df = _extractor.derive(combined)
     df = apply_target_shift(df, source_col="base_fee_gwei", target_col="next_base_fee_gwei")
     df_new = df.iloc[len(context_rows):]
     df_to_write = df_new.iloc[n_appended:]
@@ -95,7 +86,7 @@ def main():
         existing = pd.read_csv(output_path)
         if not existing.empty and "block_number" in existing.columns:
             start_block = int(existing["block_number"].iloc[-1]) + 1
-            tail = existing[["block_number", "base_fee_per_gas", "gas_used_ratio", "timestamp"]].tail(_TREND_LOOKBACK)
+            tail = existing[["block_number", "base_fee_per_gas", "gas_used_ratio", "timestamp"]].tail(BlockFeatureExtractor.TREND_LOOKBACK)
             context_rows = [
                 {
                     "block_number": int(r["block_number"]),
