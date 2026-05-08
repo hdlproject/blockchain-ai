@@ -96,13 +96,13 @@ def create_router(
             })
         return predictions
 
-    @router.post("/predict", summary=f"Predict {serve.target_description} for a single transaction")
+    @router.post("/predict/gas-price", summary=f"Predict {serve.target_description} for a single transaction")
     def predict_json(tx: TransactionModel):  # type: ignore[valid-type]
         df = pd.DataFrame([tx.model_dump()])[feature_cols]
         return _to_response(float(_predict_df(df)[0]))
 
     @router.get(
-        "/predict/latest",
+        "/predict/gas-price/latest",
         summary=f"Predict {serve.target_description} using live on-chain data",
         description=(
             "Fetches the latest block from Etherscan, computes all features automatically, "
