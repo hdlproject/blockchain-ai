@@ -45,6 +45,8 @@ def main():
         print(f"[1/3] Ingesting {args.input} ...")
         load_and_clean(args.input, processed_path, cfg)
     else:
+        if args.input:
+            processed_path = args.input
         if not Path(processed_path).exists():
             raise FileNotFoundError(
                 f"{processed_path} not found. Run collect_address_features.py first."
