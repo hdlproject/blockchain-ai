@@ -1,5 +1,5 @@
 from unittest.mock import patch, MagicMock
-from blockchain_ai.labels.forta import FortaClient, _severity_to_label, _severity_to_confidence
+from blockchain_ai.connector.forta import FortaClient, _severity_to_label, _severity_to_confidence
 from blockchain_ai.config import FortaConfig
 
 

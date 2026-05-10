@@ -14,11 +14,11 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from blockchain_ai.config import load_config
-from blockchain_ai.labels.goplus import GoPlusClient
-from blockchain_ai.labels.ofac import OFACFetcher
-from blockchain_ai.labels.forta import FortaClient
-from blockchain_ai.labels.schema import write_address_csv
-from blockchain_ai.labels.unify import unify_addresses
+from blockchain_ai.connector.goplus import GoPlusClient
+from blockchain_ai.connector.ofac import OFACFetcher
+from blockchain_ai.connector.forta import FortaClient
+from blockchain_ai.connector.schema import write_address_csv
+from blockchain_ai.connector.unify import unify_addresses
 
 
 def main():

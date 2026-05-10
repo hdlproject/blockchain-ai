@@ -17,7 +17,7 @@ load_dotenv()
 
 sys.path.insert(0, str(Path(__file__).parent / "src"))
 from blockchain_ai.config import ServeConfig, load_config
-from blockchain_ai.etherscan import EtherscanClient
+from blockchain_ai.connector.etherscan import EtherscanClient
 
 _CONFIG_PATH = os.environ.get("CONFIG", "configs/ethereum-gas-price.yaml")
 _cfg = load_config(_CONFIG_PATH)

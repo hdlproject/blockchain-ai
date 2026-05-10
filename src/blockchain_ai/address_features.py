@@ -1,6 +1,6 @@
 import math
 from datetime import datetime, timezone
-from blockchain_ai.etherscan import EtherscanClient
+from blockchain_ai.connector.etherscan import EtherscanClient
 from blockchain_ai.feature_extractor import FeatureExtractor
 
 

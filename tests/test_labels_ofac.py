@@ -1,5 +1,5 @@
 from unittest.mock import patch, MagicMock
-from blockchain_ai.labels.ofac import OFACFetcher
+from blockchain_ai.connector.ofac import OFACFetcher
 from blockchain_ai.config import OFACConfig
 
 _SAMPLE_CSV = (

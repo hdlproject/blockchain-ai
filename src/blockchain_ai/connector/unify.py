@@ -1,6 +1,6 @@
 import csv
 from pathlib import Path
-from blockchain_ai.labels.schema import AddressRecord, write_address_csv
+from blockchain_ai.connector.schema import AddressRecord, write_address_csv
 
 
 def unify_addresses(raw_paths: list[Path], output_path: Path) -> list[AddressRecord]:

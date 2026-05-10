@@ -1,6 +1,6 @@
 from unittest.mock import patch, MagicMock
-from blockchain_ai.labels.goplus import GoPlusClient
-from blockchain_ai.labels.schema import AddressRecord, TokenRecord
+from blockchain_ai.connector.goplus import GoPlusClient
+from blockchain_ai.connector.schema import AddressRecord, TokenRecord
 from blockchain_ai.config import GoPlusConfig
 
 

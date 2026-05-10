@@ -3,7 +3,7 @@ import io
 import requests
 from datetime import datetime, timezone
 from blockchain_ai.config import OFACConfig
-from blockchain_ai.labels.schema import AddressRecord
+from blockchain_ai.connector.schema import AddressRecord
 
 
 class OFACFetcher:

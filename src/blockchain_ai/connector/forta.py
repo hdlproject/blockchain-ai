@@ -1,7 +1,7 @@
 import requests
 from datetime import datetime, timezone
 from blockchain_ai.config import FortaConfig
-from blockchain_ai.labels.schema import AddressRecord
+from blockchain_ai.connector.schema import AddressRecord
 
 _QUERY = """
 query GetAlerts($input: AlertsInput) {

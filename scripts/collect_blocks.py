@@ -19,7 +19,7 @@ load_dotenv()
 
 from blockchain_ai.block_features import BlockFeatureExtractor
 from blockchain_ai.config import load_config
-from blockchain_ai.etherscan import EtherscanClient
+from blockchain_ai.connector.etherscan import EtherscanClient
 
 _extractor = BlockFeatureExtractor()
 

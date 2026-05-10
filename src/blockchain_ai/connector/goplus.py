@@ -2,7 +2,7 @@ import time
 import requests
 from datetime import datetime, timezone
 from blockchain_ai.config import GoPlusConfig
-from blockchain_ai.labels.schema import AddressRecord, TokenRecord
+from blockchain_ai.connector.schema import AddressRecord, TokenRecord
 
 _TOKEN_RISK_FLAGS = [
     "is_honeypot", "is_blacklisted", "can_take_back_ownership",

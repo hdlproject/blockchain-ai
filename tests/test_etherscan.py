@@ -2,7 +2,7 @@ import os
 import time
 from unittest.mock import patch, MagicMock
 import pytest
-from blockchain_ai.etherscan import EtherscanClient
+from blockchain_ai.connector.etherscan import EtherscanClient
 
 
 @pytest.fixture
@@ -44,7 +44,7 @@ def test_client_raises_if_api_key_missing():
 
 
 def test_get_latest_block_number(client):
-    with patch("blockchain_ai.etherscan.requests.get") as mock_get:
+    with patch("blockchain_ai.connector.etherscan.requests.get") as mock_get:
         mock_get.return_value = _ok_response("0xf4240")
         result = client.get_latest_block_number()
         assert result == 0xf4240
@@ -52,7 +52,7 @@ def test_get_latest_block_number(client):
 
 
 def test_get_latest_block_number_raises_on_http_error(client):
-    with patch("blockchain_ai.etherscan.requests.get") as mock_get:
+    with patch("blockchain_ai.connector.etherscan.requests.get") as mock_get:
         m = MagicMock()
         m.status_code = 429
         mock_get.return_value = m
@@ -61,7 +61,7 @@ def test_get_latest_block_number_raises_on_http_error(client):
 
 
 def test_get_latest_block_number_raises_on_api_error(client):
-    with patch("blockchain_ai.etherscan.requests.get") as mock_get:
+    with patch("blockchain_ai.connector.etherscan.requests.get") as mock_get:
         mock_get.return_value = _error_response("Invalid API Key")
         with pytest.raises(RuntimeError, match="Invalid API Key"):
             client.get_latest_block_number()
@@ -75,7 +75,7 @@ def test_get_block_returns_dict(client):
         "gasLimit": "0x3938700",
         "timestamp": "0x65a1b2c3",
     }
-    with patch("blockchain_ai.etherscan.requests.get") as mock_get:
+    with patch("blockchain_ai.connector.etherscan.requests.get") as mock_get:
         mock_get.return_value = _ok_response(block_result)
         result = client.get_block(0xf4240)
         assert result is not None
@@ -93,14 +93,14 @@ def test_get_block_skips_pre_eip1559_blocks(client):
         "gasLimit": "0x3938700",
         "timestamp": "0x65a1b2c3",
     }
-    with patch("blockchain_ai.etherscan.requests.get") as mock_get:
+    with patch("blockchain_ai.connector.etherscan.requests.get") as mock_get:
         mock_get.return_value = _ok_response(block_result)
         result = client.get_block(0xf4240)
         assert result is None
 
 
 def test_get_block_returns_none_for_missing_block(client):
-    with patch("blockchain_ai.etherscan.requests.get") as mock_get:
+    with patch("blockchain_ai.connector.etherscan.requests.get") as mock_get:
         mock_get.return_value = _ok_response(None)
         result = client.get_block(0xf4240)
         assert result is None
@@ -114,8 +114,8 @@ def test_rate_limiting_sleeps_between_calls(client):
     slow_client._sleep_secs = 0.2
     slow_client._timeout = 10
 
-    with patch("blockchain_ai.etherscan.requests.get") as mock_get, \
-         patch("blockchain_ai.etherscan.time.sleep") as mock_sleep:
+    with patch("blockchain_ai.connector.etherscan.requests.get") as mock_get, \
+         patch("blockchain_ai.connector.etherscan.time.sleep") as mock_sleep:
         mock_get.return_value = _ok_response("0xf4240")
         slow_client.get_latest_block_number()
         mock_sleep.assert_called_once_with(0.2)
@@ -124,7 +124,7 @@ def test_rate_limiting_sleeps_between_calls(client):
 def test_get_tx_list_returns_list(client):
     txs = [{"hash": "0xabc", "from": "0x1", "to": "0x2", "value": "1000000000000000000",
              "isError": "0", "timeStamp": "1700000000", "gasPrice": "20000000000"}]
-    with patch("blockchain_ai.etherscan.requests.get") as mock_get:
+    with patch("blockchain_ai.connector.etherscan.requests.get") as mock_get:
         mock_get.return_value = _ok_response(txs)
         result = client.get_tx_list("0xsome_address")
     assert isinstance(result, list)
@@ -133,7 +133,7 @@ def test_get_tx_list_returns_list(client):
 
 
 def test_get_tx_list_returns_empty_on_no_transactions(client):
-    with patch("blockchain_ai.etherscan.requests.get") as mock_get:
+    with patch("blockchain_ai.connector.etherscan.requests.get") as mock_get:
         mock_get.return_value = _error_response("No transactions found")
         result = client.get_tx_list("0xempty")
     assert result == []
@@ -142,7 +142,7 @@ def test_get_tx_list_returns_empty_on_no_transactions(client):
 def test_get_token_transfers_returns_list(client):
     transfers = [{"contractAddress": "0xtoken", "from": "0x1", "to": "0x2",
                   "value": "1000", "timeStamp": "1700000000"}]
-    with patch("blockchain_ai.etherscan.requests.get") as mock_get:
+    with patch("blockchain_ai.connector.etherscan.requests.get") as mock_get:
         mock_get.return_value = _ok_response(transfers)
         result = client.get_token_transfers("0xsome_address")
     assert isinstance(result, list)
@@ -150,7 +150,7 @@ def test_get_token_transfers_returns_list(client):
 
 
 def test_get_token_transfers_returns_empty_on_no_transfers(client):
-    with patch("blockchain_ai.etherscan.requests.get") as mock_get:
+    with patch("blockchain_ai.connector.etherscan.requests.get") as mock_get:
         mock_get.return_value = _error_response("No transactions found")
         result = client.get_token_transfers("0xempty")
     assert result == []

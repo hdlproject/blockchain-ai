@@ -1,5 +1,5 @@
 import csv
-from blockchain_ai.labels.schema import (
+from blockchain_ai.connector.schema import (
     AddressRecord, TokenRecord,
     write_address_csv, write_token_csv,
     ADDRESS_FIELDNAMES, TOKEN_FIELDNAMES,
