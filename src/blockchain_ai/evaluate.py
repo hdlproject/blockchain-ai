@@ -9,6 +9,20 @@ from blockchain_ai.config import PipelineConfig
 from blockchain_ai.predict import LABEL_ENCODER
 
 
+def post_process_predictions(
+    y: pd.Series,
+    y_raw: np.ndarray,
+    log_transform: bool,
+) -> tuple[np.ndarray, np.ndarray]:
+    if log_transform:
+        y_true = np.expm1(np.clip(np.asarray(y, dtype=np.float64), 0.0, 709.0))
+        y_pred = np.expm1(np.clip(np.asarray(y_raw, dtype=np.float64), 0.0, 709.0))
+    else:
+        y_true = np.asarray(y, dtype=np.float64)
+        y_pred = np.asarray(y_raw, dtype=np.float64)
+    return y_true, y_pred
+
+
 def evaluate_model(
     test_path: str,
     model_path: str,
@@ -22,10 +36,11 @@ def evaluate_model(
     X = df.drop(columns=[target_col])
     y = df[target_col]
     model = joblib.load(model_path)
+    y_raw = model.predict(X)
 
     if cfg.task == "classification":
         from sklearn.metrics import accuracy_score, f1_score
-        y_pred = model.predict(X)
+        y_pred = y_raw
         per_class = {
             f"f1_{name}": float(f1_score(y, y_pred, average=None, labels=[idx], zero_division=0)[0])
             for idx, name in LABEL_ENCODER.items()
@@ -36,13 +51,7 @@ def evaluate_model(
             **per_class,
         }
     else:
-        y_pred_log = model.predict(X)
-        if log_transform:
-            y_true = np.expm1(np.clip(np.asarray(y, dtype=np.float64), 0.0, 709.0))
-            y_pred = np.expm1(np.clip(np.asarray(y_pred_log, dtype=np.float64), 0.0, 709.0))
-        else:
-            y_true = np.asarray(y, dtype=np.float64)
-            y_pred = np.asarray(y_pred_log, dtype=np.float64)
+        y_true, y_pred = post_process_predictions(y, y_raw, log_transform)
         report = {
             "rmse": float(mean_squared_error(y_true, y_pred) ** 0.5),
             "mae": float(mean_absolute_error(y_true, y_pred)),
