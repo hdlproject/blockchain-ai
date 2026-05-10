@@ -55,6 +55,11 @@ train:
     colsample_bytree: 0.8
     random_state: 42
 
+paths:
+  processed_path: data/processed/features/address_features.csv
+  test_path: data/processed/address_features_test.csv
+  report_path: reports/address_classifier_report.json
+
 serve:
   title: Ethereum Address Classifier
   description: Classifies Ethereum addresses.

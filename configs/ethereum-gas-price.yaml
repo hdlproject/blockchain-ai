@@ -8,6 +8,11 @@ collect:
   n_blocks: 2000
   output_path: data/raw/ethereum-blocks.csv
 
+paths:
+  processed_path: data/processed/ethereum-transactions.csv
+  test_path: data/processed/ethereum-transactions-test.csv
+  report_path: reports/report.json
+
 ingest:
   feature_cols:
     - base_fee_gwei

@@ -29,41 +29,35 @@ def main():
     args = parser.parse_args()
 
     cfg = load_config(args.config)
-    task = cfg.task
 
-    if task == "regression":
+    if cfg.paths is None:
+        raise RuntimeError("Config missing required 'paths' section (processed_path, test_path, report_path).")
+
+    processed_path = cfg.paths.processed_path
+    test_path = cfg.paths.test_path
+    report_path = cfg.paths.report_path
+    model_path = cfg.serve.model_path if cfg.serve else "models/model.joblib"
+
+    if cfg.task == "regression":
         if not args.input:
             parser.error("--input is required for task=regression")
         from blockchain_ai.ingest import load_and_clean
-
-        processed_path = "data/processed/ethereum-transactions.csv"
-        test_path = "data/processed/ethereum-transactions-test.csv"
-        model_path = "models/model.joblib"
-        report_path = "reports/report.json"
-
         print(f"[1/3] Ingesting {args.input} ...")
         load_and_clean(args.input, processed_path, cfg)
-
-        print(f"[2/3] Training {cfg.train.model_type} model ...")
-        train_model(processed_path, model_path, test_path, cfg)
-
-        print("[3/3] Evaluating model ...")
-        report = evaluate_model(test_path, model_path, report_path, cfg)
-
     else:
-        features_path = "data/processed/features/address_features.csv"
-        model_path = cfg.serve.model_path if cfg.serve else "models/address_classifier.joblib"
-        test_path = "data/processed/address_features_test.csv"
-        report_path = "reports/address_classifier_report.json"
+        if not Path(processed_path).exists():
+            raise FileNotFoundError(
+                f"{processed_path} not found. Run collect_address_features.py first."
+            )
 
-        if not Path(features_path).exists():
-            raise FileNotFoundError(f"{features_path} not found. Run collect_address_features.py first.")
+    step = 2 if cfg.task == "regression" else 1
+    total = 3 if cfg.task == "regression" else 2
 
-        print(f"[1/2] Training classification model from {features_path} ...")
-        train_model(features_path, model_path, test_path, cfg)
+    print(f"[{step}/{total}] Training {cfg.train.model_type} model ...")
+    train_model(processed_path, model_path, test_path, cfg)
 
-        print("[2/2] Evaluating model ...")
-        report = evaluate_model(test_path, model_path, report_path, cfg)
+    print(f"[{step + 1}/{total}] Evaluating model ...")
+    report = evaluate_model(test_path, model_path, report_path, cfg)
 
     print(f"\nPipeline complete. Report:")
     for k, v in report.items():

@@ -59,6 +59,13 @@ class EtherscanConfig:
 
 
 @dataclass
+class PathsConfig:
+    processed_path: str
+    test_path: str
+    report_path: str
+
+
+@dataclass
 class CollectConfig:
     n_blocks: int
     output_path: str
@@ -95,6 +102,7 @@ class PipelineConfig:
     task: str = "regression"
     hpo: "HpoConfig | None" = None
     serve: "ServeConfig | None" = None
+    paths: "PathsConfig | None" = None
     etherscan: "EtherscanConfig | None" = None
     collect: "CollectConfig | None" = None
     goplus: "GoPlusConfig | None" = None
@@ -189,6 +197,18 @@ def load_config(path: str) -> PipelineConfig:
             timeout_sec=int(e["timeout_sec"]),
         )
 
+    paths_cfg = None
+    if "paths" in raw:
+        p = raw["paths"]
+        for key in ("processed_path", "test_path", "report_path"):
+            if key not in p:
+                raise ValueError(f"Config paths section missing required key: '{key}'")
+        paths_cfg = PathsConfig(
+            processed_path=p["processed_path"],
+            test_path=p["test_path"],
+            report_path=p["report_path"],
+        )
+
     collect_cfg = None
     if "collect" in raw:
         c = raw["collect"]
@@ -260,6 +280,7 @@ def load_config(path: str) -> PipelineConfig:
         ),
         hpo=hpo_cfg,
         serve=serve_cfg,
+        paths=paths_cfg,
         etherscan=etherscan_cfg,
         collect=collect_cfg,
         goplus=goplus_cfg,
