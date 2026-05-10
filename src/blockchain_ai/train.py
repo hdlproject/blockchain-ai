@@ -39,6 +39,7 @@ def train_model(
             X, y,
             test_size=config.test_size,
             random_state=config.hyperparameters.get("random_state", 42),
+            stratify=None,
         )
         if config.model_type == "xgboost":
             model = XGBRegressor(**config.hyperparameters)
