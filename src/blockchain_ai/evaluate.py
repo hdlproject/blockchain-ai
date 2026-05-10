@@ -18,8 +18,8 @@ def post_process_predictions(
         y_true = np.expm1(np.clip(np.asarray(y, dtype=np.float64), 0.0, 709.0))
         y_pred = np.expm1(np.clip(np.asarray(y_raw, dtype=np.float64), 0.0, 709.0))
     else:
-        y_true = np.asarray(y, dtype=np.float64)
-        y_pred = np.asarray(y_raw, dtype=np.float64)
+        y_true = np.asarray(y)
+        y_pred = np.asarray(y_raw)
     return y_true, y_pred
 
 
@@ -37,21 +37,20 @@ def evaluate_model(
     y = df[target_col]
     model = joblib.load(model_path)
     y_raw = model.predict(X)
+    y_true, y_pred = post_process_predictions(y, y_raw, log_transform)
 
     if cfg.task == "classification":
         from sklearn.metrics import accuracy_score, f1_score
-        y_pred = y_raw
         per_class = {
-            f"f1_{name}": float(f1_score(y, y_pred, average=None, labels=[idx], zero_division=0)[0])
+            f"f1_{name}": float(f1_score(y_true, y_pred, average=None, labels=[idx], zero_division=0)[0])
             for idx, name in LABEL_ENCODER.items()
         }
         report = {
-            "accuracy": float(accuracy_score(y, y_pred)),
-            "f1_macro": float(f1_score(y, y_pred, average="macro", zero_division=0)),
+            "accuracy": float(accuracy_score(y_true, y_pred)),
+            "f1_macro": float(f1_score(y_true, y_pred, average="macro", zero_division=0)),
             **per_class,
         }
     else:
-        y_true, y_pred = post_process_predictions(y, y_raw, log_transform)
         report = {
             "rmse": float(mean_squared_error(y_true, y_pred) ** 0.5),
             "mae": float(mean_absolute_error(y_true, y_pred)),
