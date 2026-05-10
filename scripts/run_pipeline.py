@@ -41,24 +41,24 @@ def main():
     if cfg.task == "regression":
         if not args.input:
             parser.error("--input is required for task=regression")
+
         from blockchain_ai.ingest import load_and_clean
         print(f"[1/3] Ingesting {args.input} ...")
         load_and_clean(args.input, processed_path, cfg)
     else:
         if args.input:
             processed_path = args.input
+
         if not Path(processed_path).exists():
             raise FileNotFoundError(
                 f"{processed_path} not found. Run collect_address_features.py first."
             )
+        print(f"[1/3] Ingesting {args.input} ...")
 
-    step = 2 if cfg.task == "regression" else 1
-    total = 3 if cfg.task == "regression" else 2
-
-    print(f"[{step}/{total}] Training {cfg.train.model_type} model ...")
+    print(f"[2/3] Training {cfg.train.model_type} model ...")
     train_model(processed_path, model_path, test_path, cfg)
 
-    print(f"[{step + 1}/{total}] Evaluating model ...")
+    print(f"[3/3] Evaluating model ...")
     report = evaluate_model(test_path, model_path, report_path, cfg)
 
     print(f"\nPipeline complete. Report:")
