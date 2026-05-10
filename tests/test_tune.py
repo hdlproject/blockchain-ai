@@ -19,7 +19,6 @@ def _base_config(**overrides):
     base = dict(
         target_col="log_gas_price",
         model_type="xgboost",
-        stratify_col="transaction_type",
         test_size=0.2,
         hyperparameters={"n_estimators": 5, "random_state": 42},
     )
@@ -55,7 +54,6 @@ def test_run_hpo_preserves_non_hyperparameter_fields(tmp_path):
 
     assert result.target_col == original_config.target_col
     assert result.model_type == original_config.model_type
-    assert result.stratify_col == original_config.stratify_col
     assert result.test_size == original_config.test_size
 
 

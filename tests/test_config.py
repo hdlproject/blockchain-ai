@@ -20,7 +20,6 @@ ingest:
 train:
   target_col: log_gas_price
   model_type: xgboost
-  stratify_col: transaction_type
   test_size: 0.2
   hyperparameters:
     n_estimators: 10
@@ -49,7 +48,6 @@ def test_load_config_train_fields(tmp_path):
     cfg = load_config(path)
     assert cfg.train.target_col == "log_gas_price"
     assert cfg.train.model_type == "xgboost"
-    assert cfg.train.stratify_col == "transaction_type"
     assert cfg.train.test_size == 0.2
     assert cfg.train.hyperparameters == {"n_estimators": 10, "random_state": 42}
 
@@ -64,7 +62,6 @@ def test_load_config_raises_on_missing_ingest_key(tmp_path):
 train:
   target_col: log_gas_price
   model_type: xgboost
-  stratify_col: transaction_type
   test_size: 0.2
   hyperparameters: {}
 """
@@ -94,7 +91,6 @@ ingest:
 train:
   target_col: log_gas_price
   model_type: xgboost
-  stratify_col: transaction_type
   test_size: 0.2
   hyperparameters:
     n_estimators: 10
@@ -123,7 +119,6 @@ ingest:
 train:
   target_col: log_gas_price
   model_type: xgboost
-  stratify_col: transaction_type
   test_size: 0.2
   hyperparameters:
     n_estimators: 10
@@ -145,7 +140,6 @@ ingest:
 train:
   target_col: log_gas_price
   model_type: xgboost
-  stratify_col: transaction_type
   test_size: 0.2
   hyperparameters:
     n_estimators: 10
@@ -210,7 +204,6 @@ ingest:
 train:
   target_col: log_gas_price
   model_type: xgboost
-  stratify_col: transaction_type
   test_size: 0.2
   hyperparameters:
     n_estimators: 10
@@ -276,10 +269,8 @@ def test_load_config_with_collect_section(tmp_path):
     assert cfg.collect.output_path == "data/raw/blocks.csv"
 
 
-def test_load_config_stratify_col_is_optional(tmp_path):
     path = _write_yaml(tmp_path, _ETHERSCAN_YAML)
     cfg = load_config(path)
-    assert cfg.train.stratify_col is None
 
 
 def test_load_config_without_etherscan_section(tmp_path):

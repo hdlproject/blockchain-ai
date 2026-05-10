@@ -17,7 +17,6 @@ class TrainConfig:
     model_type: str
     test_size: float
     hyperparameters: dict
-    stratify_col: str | None = None
 
 
 @dataclass
@@ -255,7 +254,7 @@ def load_config(path: str) -> PipelineConfig:
         train=TrainConfig(
             target_col=t["target_col"],
             model_type=t["model_type"],
-            stratify_col=t.get("stratify_col"),
+
             test_size=t["test_size"],
             hyperparameters=t["hyperparameters"],
         ),

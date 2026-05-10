@@ -20,7 +20,6 @@ def _default_config(**overrides):
     base = dict(
         target_col="log_gas_price",
         model_type="xgboost",
-        stratify_col="transaction_type",
         test_size=0.2,
         hyperparameters={"n_estimators": 10, "random_state": 42},
     )
@@ -92,7 +91,6 @@ def _processed_df_no_stratify():
     })
 
 
-def test_train_model_works_without_stratify_col(tmp_path):
     csv_path = tmp_path / "processed.csv"
     model_path = tmp_path / "model.joblib"
     test_path = tmp_path / "test.csv"
@@ -101,7 +99,6 @@ def test_train_model_works_without_stratify_col(tmp_path):
     cfg = TrainConfig(
         target_col="log_base_fee_gwei",
         model_type="xgboost",
-        stratify_col=None,
         test_size=0.2,
         hyperparameters={"n_estimators": 10, "random_state": 42},
     )
@@ -124,7 +121,6 @@ def _classification_config():
     return TrainConfig(
         target_col="label",
         model_type="xgboost",
-        stratify_col=None,
         test_size=0.2,
         hyperparameters={"n_estimators": 10, "random_state": 42},
     )
