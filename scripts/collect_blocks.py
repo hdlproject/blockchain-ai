@@ -46,7 +46,7 @@ def _append_new_rows(context_rows: list[dict], new_rows: list[dict], n_appended:
     combined = context_rows + new_rows
     if len(combined) < 2:
         return n_appended
-    df = _extractor.derive(combined)
+    df = _extractor.extract(combined)
     df = apply_target_shift(df, source_col="base_fee_gwei", target_col="next_base_fee_gwei")
     df_new = df.iloc[len(context_rows):]
     df_to_write = df_new.iloc[n_appended:]

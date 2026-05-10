@@ -57,7 +57,7 @@ def create_router(
                 detail="Etherscan client not available. Check ETHERSCAN_API_KEY and etherscan config.",
             )
         try:
-            return _block_extractor.fetch_latest()
+            return _block_extractor.extract()
         except RuntimeError as exc:
             raise HTTPException(status_code=503, detail=str(exc))
 
