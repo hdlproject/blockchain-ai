@@ -18,30 +18,25 @@ def train_model(
     df = pd.read_csv(input_path)
     X = df.drop(columns=[config.target_col])
     y = df[config.target_col]
-
+    stratify = None
     if task == "classification":
         y = y.map(LABEL_TO_INT)
+        stratify = y
+
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y,
+        test_size=config.test_size,
+        random_state=config.hyperparameters.get("random_state", 42),
+        stratify=stratify,
+    )
 
     if task == "classification":
-        X_train, X_test, y_train, y_test = train_test_split(
-            X, y,
-            test_size=config.test_size,
-            random_state=config.hyperparameters.get("random_state", 42),
-            stratify=y,
-        )
         if config.model_type == "xgboost":
             hparams = {k: v for k, v in config.hyperparameters.items()}
             model = XGBClassifier(**hparams)
         else:
             raise ValueError(f"Unknown model_type: {config.model_type!r}. Supported: 'xgboost'")
     else:
-        stratify = df[config.stratify_col] if config.stratify_col else None
-        X_train, X_test, y_train, y_test = train_test_split(
-            X, y,
-            test_size=config.test_size,
-            random_state=config.hyperparameters.get("random_state", 42),
-            stratify=None,
-        )
         if config.model_type == "xgboost":
             model = XGBRegressor(**config.hyperparameters)
         else:
