@@ -3,7 +3,7 @@ import pandas as pd
 from pathlib import Path
 from sklearn.model_selection import train_test_split
 from xgboost import XGBRegressor, XGBClassifier
-from blockchain_ai.config import TrainConfig
+from blockchain_ai.config import PipelineConfig, TrainConfig
 
 LABEL_TO_INT = {"sanctioned": 0, "scammer": 1, "phishing": 2}
 
@@ -12,35 +12,39 @@ def train_model(
         input_path: str,
         model_path: str,
         test_path: str,
-        config: TrainConfig,
-        task: str = "regression",
+        cfg: PipelineConfig,
 ) -> object:
+    train_config = cfg.train
+
+    if cfg.hpo is not None:
+        from blockchain_ai.tune import run_hpo
+        train_config = run_hpo(input_path, train_config, n_trials=cfg.hpo.n_trials)
+
     df = pd.read_csv(input_path)
-    X = df.drop(columns=[config.target_col])
-    y = df[config.target_col]
+    X = df.drop(columns=[train_config.target_col])
+    y = df[train_config.target_col]
     stratify = None
-    if task == "classification":
+    if cfg.task == "classification":
         y = y.map(LABEL_TO_INT)
         stratify = y
 
     X_train, X_test, y_train, y_test = train_test_split(
         X, y,
-        test_size=config.test_size,
-        random_state=config.hyperparameters.get("random_state", 42),
+        test_size=train_config.test_size,
+        random_state=train_config.hyperparameters.get("random_state", 42),
         stratify=stratify,
     )
 
-    if task == "classification":
-        if config.model_type == "xgboost":
-            hparams = {k: v for k, v in config.hyperparameters.items()}
-            model = XGBClassifier(**hparams)
+    if cfg.task == "classification":
+        if train_config.model_type == "xgboost":
+            model = XGBClassifier(**train_config.hyperparameters)
         else:
-            raise ValueError(f"Unknown model_type: {config.model_type!r}. Supported: 'xgboost'")
+            raise ValueError(f"Unknown model_type: {train_config.model_type!r}. Supported: 'xgboost'")
     else:
-        if config.model_type == "xgboost":
-            model = XGBRegressor(**config.hyperparameters)
+        if train_config.model_type == "xgboost":
+            model = XGBRegressor(**train_config.hyperparameters)
         else:
-            raise ValueError(f"Unknown model_type: {config.model_type!r}. Supported: 'xgboost'")
+            raise ValueError(f"Unknown model_type: {train_config.model_type!r}. Supported: 'xgboost'")
 
     model.fit(X_train, y_train)
 
@@ -48,7 +52,7 @@ def train_model(
     joblib.dump(model, model_path)
 
     test_df = X_test.copy()
-    test_df[config.target_col] = y_test
+    test_df[train_config.target_col] = y_test
     Path(test_path).parent.mkdir(parents=True, exist_ok=True)
     test_df.to_csv(test_path, index=False)
 

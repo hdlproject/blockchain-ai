@@ -35,28 +35,19 @@ def main():
         if not args.input:
             parser.error("--input is required for task=regression")
         from blockchain_ai.ingest import load_and_clean
-        from blockchain_ai.tune import run_hpo
 
         processed_path = "data/processed/ethereum-transactions.csv"
         test_path = "data/processed/ethereum-transactions-test.csv"
         model_path = "models/model.joblib"
         report_path = "reports/report.json"
 
-        print(f"[1/4] Ingesting {args.input} ...")
+        print(f"[1/3] Ingesting {args.input} ...")
         load_and_clean(args.input, processed_path, cfg)
 
-        train_config = cfg.train
-        if cfg.hpo is not None:
-            print(f"[2/4] Running Optuna HPO ({cfg.hpo.n_trials} trials) ...")
-            train_config = run_hpo(processed_path, cfg.train, n_trials=cfg.hpo.n_trials)
-            print(f"      Best hyperparameters: {train_config.hyperparameters}")
-        else:
-            print("[2/4] Skipping HPO (no hpo section in config)")
+        print(f"[2/3] Training {cfg.train.model_type} model ...")
+        train_model(processed_path, model_path, test_path, cfg)
 
-        print(f"[3/4] Training {train_config.model_type} model ...")
-        train_model(processed_path, model_path, test_path, train_config)
-
-        print("[4/4] Evaluating model ...")
+        print("[3/3] Evaluating model ...")
         report = evaluate_model(test_path, model_path, report_path, cfg)
 
     else:
@@ -69,7 +60,7 @@ def main():
             raise FileNotFoundError(f"{features_path} not found. Run collect_address_features.py first.")
 
         print(f"[1/2] Training classification model from {features_path} ...")
-        train_model(features_path, model_path, test_path, cfg.train, task="classification")
+        train_model(features_path, model_path, test_path, cfg)
 
         print("[2/2] Evaluating model ...")
         report = evaluate_model(test_path, model_path, report_path, cfg)

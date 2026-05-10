@@ -1,8 +1,22 @@
 import pandas as pd
 import pytest
 import joblib
-from blockchain_ai.config import TrainConfig
+from blockchain_ai.config import IngestConfig, PipelineConfig, TrainConfig
 from blockchain_ai.train import train_model
+
+
+def _cfg(target_col: str, model_type: str = "xgboost", hyperparameters: dict | None = None,
+         task: str = "regression") -> PipelineConfig:
+    return PipelineConfig(
+        task=task,
+        ingest=IngestConfig(feature_cols=[], fill_zero_cols=[], target_col=target_col),
+        train=TrainConfig(
+            target_col=target_col,
+            model_type=model_type,
+            test_size=0.2,
+            hyperparameters=hyperparameters or {"n_estimators": 10, "random_state": 42},
+        ),
+    )
 
 
 def _processed_df():
@@ -16,97 +30,6 @@ def _processed_df():
     })
 
 
-def _default_config(**overrides):
-    base = dict(
-        target_col="log_gas_price",
-        model_type="xgboost",
-        test_size=0.2,
-        hyperparameters={"n_estimators": 10, "random_state": 42},
-    )
-    base.update(overrides)
-    return TrainConfig(**base)
-
-
-def test_train_model_saves_model_artifact(tmp_path):
-    csv_path = tmp_path / "processed.csv"
-    model_path = tmp_path / "model.joblib"
-    test_path = tmp_path / "test.csv"
-    _processed_df().to_csv(csv_path, index=False)
-
-    train_model(str(csv_path), str(model_path), str(test_path), _default_config())
-
-    assert model_path.exists()
-
-
-def test_train_model_saves_test_split(tmp_path):
-    csv_path = tmp_path / "processed.csv"
-    model_path = tmp_path / "model.joblib"
-    test_path = tmp_path / "test.csv"
-    _processed_df().to_csv(csv_path, index=False)
-
-    train_model(str(csv_path), str(model_path), str(test_path), _default_config())
-
-    assert test_path.exists()
-    test_df = pd.read_csv(test_path)
-    assert "log_gas_price" in test_df.columns
-    assert len(test_df) == 4  # 20% of 20 rows
-
-
-def test_train_model_raises_on_unknown_model_type(tmp_path):
-    csv_path = tmp_path / "processed.csv"
-    _processed_df().to_csv(csv_path, index=False)
-
-    with pytest.raises(ValueError, match="Unknown model_type"):
-        train_model(
-            str(csv_path),
-            str(tmp_path / "m.joblib"),
-            str(tmp_path / "t.csv"),
-            _default_config(model_type="unknown"),
-        )
-
-
-def test_train_model_uses_hyperparameters_from_config(tmp_path):
-    csv_path = tmp_path / "processed.csv"
-    model_path = tmp_path / "model.joblib"
-    test_path = tmp_path / "test.csv"
-    _processed_df().to_csv(csv_path, index=False)
-
-    train_model(
-        str(csv_path), str(model_path), str(test_path),
-        _default_config(hyperparameters={"n_estimators": 5, "random_state": 0}),
-    )
-
-    model = joblib.load(model_path)
-    assert model.n_estimators == 5
-
-
-def _processed_df_no_stratify():
-    return pd.DataFrame({
-        "base_fee_gwei": [10.0 + i * 0.1 for i in range(20)],
-        "gas_used_ratio": [0.5] * 20,
-        "base_fee_trend": [0.01] * 20,
-        "hour_of_day": [i % 24 for i in range(20)],
-        "day_of_week": [i % 7 for i in range(20)],
-        "log_base_fee_gwei": [2.3 + i * 0.01 for i in range(20)],
-    })
-
-
-    csv_path = tmp_path / "processed.csv"
-    model_path = tmp_path / "model.joblib"
-    test_path = tmp_path / "test.csv"
-    _processed_df_no_stratify().to_csv(csv_path, index=False)
-
-    cfg = TrainConfig(
-        target_col="log_base_fee_gwei",
-        model_type="xgboost",
-        test_size=0.2,
-        hyperparameters={"n_estimators": 10, "random_state": 42},
-    )
-    train_model(str(csv_path), str(model_path), str(test_path), cfg)
-
-    assert model_path.exists()
-
-
 def _classification_df():
     return pd.DataFrame({
         "tx_count": [100.0, 50.0, 200.0, 10.0, 5.0, 300.0, 80.0, 20.0, 150.0, 60.0,
@@ -117,30 +40,56 @@ def _classification_df():
     })
 
 
-def _classification_config():
-    return TrainConfig(
-        target_col="label",
-        model_type="xgboost",
-        test_size=0.2,
-        hyperparameters={"n_estimators": 10, "random_state": 42},
-    )
+def test_train_model_saves_model_artifact(tmp_path):
+    csv_path = tmp_path / "processed.csv"
+    _processed_df().to_csv(csv_path, index=False)
+    train_model(str(csv_path), str(tmp_path / "m.joblib"), str(tmp_path / "t.csv"),
+                _cfg("log_gas_price"))
+    assert (tmp_path / "m.joblib").exists()
+
+
+def test_train_model_saves_test_split(tmp_path):
+    csv_path = tmp_path / "processed.csv"
+    test_path = tmp_path / "test.csv"
+    _processed_df().to_csv(csv_path, index=False)
+    train_model(str(csv_path), str(tmp_path / "m.joblib"), str(test_path), _cfg("log_gas_price"))
+    assert test_path.exists()
+    test_df = pd.read_csv(test_path)
+    assert "log_gas_price" in test_df.columns
+    assert len(test_df) == 4  # 20% of 20 rows
+
+
+def test_train_model_raises_on_unknown_model_type(tmp_path):
+    csv_path = tmp_path / "processed.csv"
+    _processed_df().to_csv(csv_path, index=False)
+    with pytest.raises(ValueError, match="Unknown model_type"):
+        train_model(str(csv_path), str(tmp_path / "m.joblib"), str(tmp_path / "t.csv"),
+                    _cfg("log_gas_price", model_type="unknown"))
+
+
+def test_train_model_uses_hyperparameters_from_config(tmp_path):
+    csv_path = tmp_path / "processed.csv"
+    model_path = tmp_path / "model.joblib"
+    _processed_df().to_csv(csv_path, index=False)
+    train_model(str(csv_path), str(model_path), str(tmp_path / "t.csv"),
+                _cfg("log_gas_price", hyperparameters={"n_estimators": 5, "random_state": 0}))
+    assert joblib.load(model_path).n_estimators == 5
 
 
 def test_train_model_classification_saves_model(tmp_path):
     csv_path = tmp_path / "features.csv"
     _classification_df().to_csv(csv_path, index=False)
-    model_path = tmp_path / "model.joblib"
-    test_path = tmp_path / "test.csv"
-    train_model(str(csv_path), str(model_path), str(test_path), _classification_config(), task="classification")
-    assert model_path.exists()
+    train_model(str(csv_path), str(tmp_path / "m.joblib"), str(tmp_path / "t.csv"),
+                _cfg("label", task="classification"))
+    assert (tmp_path / "m.joblib").exists()
 
 
 def test_train_model_classification_test_split_has_encoded_labels(tmp_path):
     csv_path = tmp_path / "features.csv"
-    _classification_df().to_csv(csv_path, index=False)
-    model_path = tmp_path / "model.joblib"
     test_path = tmp_path / "test.csv"
-    train_model(str(csv_path), str(model_path), str(test_path), _classification_config(), task="classification")
+    _classification_df().to_csv(csv_path, index=False)
+    train_model(str(csv_path), str(tmp_path / "m.joblib"), str(test_path),
+                _cfg("label", task="classification"))
     test_df = pd.read_csv(test_path)
     assert "label" in test_df.columns
     assert set(test_df["label"].unique()).issubset({0, 1, 2})
@@ -148,9 +97,8 @@ def test_train_model_classification_test_split_has_encoded_labels(tmp_path):
 
 def test_train_model_classification_model_has_predict_proba(tmp_path):
     csv_path = tmp_path / "features.csv"
-    _classification_df().to_csv(csv_path, index=False)
     model_path = tmp_path / "model.joblib"
-    import joblib as jl
-    train_model(str(csv_path), str(model_path), str(tmp_path / "t.csv"), _classification_config(), task="classification")
-    model = jl.load(model_path)
-    assert hasattr(model, "predict_proba")
+    _classification_df().to_csv(csv_path, index=False)
+    train_model(str(csv_path), str(model_path), str(tmp_path / "t.csv"),
+                _cfg("label", task="classification"))
+    assert hasattr(joblib.load(model_path), "predict_proba")
