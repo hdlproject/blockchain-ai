@@ -43,7 +43,7 @@ def main():
         report_path = "reports/report.json"
 
         print(f"[1/4] Ingesting {args.input} ...")
-        load_and_clean(args.input, processed_path, cfg.ingest)
+        load_and_clean(args.input, processed_path, cfg)
 
         train_config = cfg.train
         if cfg.hpo is not None:
