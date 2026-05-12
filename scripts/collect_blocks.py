@@ -17,7 +17,7 @@ from dotenv import load_dotenv
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 load_dotenv()
 
-from blockchain_ai.block_features import BlockFeatureExtractor
+from blockchain_ai.feature.block_features import BlockFeatureExtractor
 from blockchain_ai.config import load_config
 from blockchain_ai.connector.etherscan import EtherscanClient
 

@@ -3,7 +3,7 @@ from unittest.mock import MagicMock
 import pandas as pd
 import pytest
 
-from blockchain_ai.block_features import BlockFeatureExtractor
+from blockchain_ai.feature.block_features import BlockFeatureExtractor
 
 _ROWS = [
     {"block_number": 100 + i, "base_fee_per_gas": (10 + i) * 10**9,

@@ -5,7 +5,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "scripts"))
 from collect_blocks import apply_target_shift
-from blockchain_ai.block_features import BlockFeatureExtractor
+from blockchain_ai.feature.block_features import BlockFeatureExtractor
 
 _extractor = BlockFeatureExtractor()
 

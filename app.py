@@ -65,7 +65,7 @@ if task == "regression":
     app.include_router(create_router(serve, feature_cols, model, _etherscan_client))
 
 elif task == "classification":
-    from blockchain_ai.address_features import AddressFeatureExtractor
+    from blockchain_ai.feature.address_features import AddressFeatureExtractor
     from blockchain_ai.job_store import JobStore
     from blockchain_ai.router_address import create_router
     _job_store = JobStore(serve.db_path)

@@ -1,5 +1,5 @@
 from unittest.mock import MagicMock
-from blockchain_ai.address_features import AddressFeatureExtractor, _compute_features, _entropy
+from blockchain_ai.feature.address_features import AddressFeatureExtractor, _compute_features, _entropy
 
 _ADDRESS = "0xabc0000000000000000000000000000000000001"
 

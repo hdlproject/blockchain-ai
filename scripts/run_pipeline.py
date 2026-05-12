@@ -42,7 +42,7 @@ def main():
         if not args.input:
             parser.error("--input is required for task=regression")
 
-        from blockchain_ai.feature_engineering import load_and_clean
+        from blockchain_ai.feature.feature_engineering import load_and_clean
         print(f"[1/3] Ingesting {args.input} ...")
         load_and_clean(args.input, processed_path, cfg)
     else:

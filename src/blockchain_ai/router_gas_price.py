@@ -5,7 +5,7 @@ import pandas as pd
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import Field, create_model
 
-from blockchain_ai.block_features import BlockFeatureExtractor
+from blockchain_ai.feature.block_features import BlockFeatureExtractor
 from blockchain_ai.config import FieldConfig, ServeConfig
 _TYPE_MAP = {"float": float, "int": int}
 

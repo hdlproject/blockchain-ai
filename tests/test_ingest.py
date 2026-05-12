@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import pytest
 from blockchain_ai.config import IngestConfig, PipelineConfig, ServeConfig, TrainConfig
-from blockchain_ai.feature_engineering import load_and_clean
+from blockchain_ai.feature.feature_engineering import load_and_clean
 
 
 def _make_csv(tmp_path, df):
