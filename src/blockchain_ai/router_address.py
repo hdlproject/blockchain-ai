@@ -1,7 +1,7 @@
 import json
 from fastapi import APIRouter, BackgroundTasks
 from fastapi.responses import JSONResponse
-from blockchain_ai.job_store import JobStore
+from blockchain_ai.database.job_store import JobStore
 from blockchain_ai.predict import predict_address
 
 

@@ -16,9 +16,9 @@ def pre_evaluate_model(test_path: str, cfg: PipelineConfig) -> tuple[pd.DataFram
 
 
 def post_evaluate_model(
-    y: pd.Series,
-    y_raw: np.ndarray,
-    cfg: PipelineConfig,
+        y: pd.Series,
+        y_raw: np.ndarray,
+        cfg: PipelineConfig,
 ) -> dict:
     log_transform = cfg.serve.log_transform if cfg.serve else False
 
@@ -39,19 +39,21 @@ def post_evaluate_model(
             "f1_macro": float(f1_score(y_true, y_pred, average="macro", zero_division=0)),
             **per_class,
         }
-
-    return {
-        "rmse": float(mean_squared_error(y_true, y_pred) ** 0.5),
-        "mae": float(mean_absolute_error(y_true, y_pred)),
-        "r2": float(r2_score(y_true, y_pred)),
-    }
+    elif cfg.task == "regression":
+        return {
+            "rmse": float(mean_squared_error(y_true, y_pred) ** 0.5),
+            "mae": float(mean_absolute_error(y_true, y_pred)),
+            "r2": float(r2_score(y_true, y_pred)),
+        }
+    else:
+        raise ValueError(f"Unsupported task type: {cfg.task}")
 
 
 def evaluate_model(
-    test_path: str,
-    model_path: str,
-    report_path: str,
-    cfg: PipelineConfig,
+        test_path: str,
+        model_path: str,
+        report_path: str,
+        cfg: PipelineConfig,
 ) -> dict:
     X, y = pre_evaluate_model(test_path, cfg)
     y_raw = joblib.load(model_path).predict(X)
