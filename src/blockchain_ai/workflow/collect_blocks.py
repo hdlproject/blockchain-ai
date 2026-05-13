@@ -3,7 +3,7 @@
 Fetch the latest N blocks from Etherscan and write a feature CSV for training.
 
 Usage:
-    poetry run python scripts/collect_blocks.py --config configs/ethereum-gas-price.yaml
+    poetry run python src/blockchain_ai/workflow/collect_blocks.py --config configs/ethereum-gas-price.yaml
 """
 import argparse
 import signal
@@ -14,7 +14,7 @@ from pathlib import Path
 import pandas as pd
 from dotenv import load_dotenv
 
-sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 load_dotenv()
 
 from blockchain_ai.feature.block_features import BlockFeatureExtractor

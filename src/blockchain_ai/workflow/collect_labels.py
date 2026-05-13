@@ -3,15 +3,15 @@
 Collect ground-truth address labels from GoPlus, OFAC, and Forta, then unify them.
 
 Usage:
-    python scripts/collect_labels.py --config configs/address-classifier.yaml
-    python scripts/collect_labels.py --config configs/address-classifier.yaml \
+    python src/blockchain_ai/workflow/collect_labels.py --config configs/address-classifier.yaml
+    python src/blockchain_ai/workflow/collect_labels.py --config configs/address-classifier.yaml \
         --addresses 0xABC...,0xDEF...
 """
 import argparse
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from blockchain_ai.config import load_config
 from blockchain_ai.connector.goplus import GoPlusClient

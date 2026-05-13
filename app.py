@@ -61,13 +61,13 @@ def health():
 
 
 if task == "regression":
-    from blockchain_ai.router_gas_price import create_router
+    from blockchain_ai.server.router_gas_price import create_router
     app.include_router(create_router(serve, feature_cols, model, _etherscan_client))
 
 elif task == "classification":
     from blockchain_ai.feature.address_features import AddressFeatureExtractor
-    from blockchain_ai.job_store import JobStore
-    from blockchain_ai.router_address import create_router
+    from blockchain_ai.database.job_store import JobStore
+    from blockchain_ai.server.router_address import create_router
     _job_store = JobStore(serve.db_path)
     _feature_extractor = AddressFeatureExtractor(_etherscan_client) if _etherscan_client else None
     app.include_router(create_router(_job_store, model, _feature_extractor, feature_cols, serve.confidence_threshold))

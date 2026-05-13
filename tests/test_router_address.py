@@ -2,8 +2,8 @@ import json
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from blockchain_ai.job_store import JobStore
-from blockchain_ai.router_address import create_router
+from blockchain_ai.database.job_store import JobStore
+from blockchain_ai.server.router_address import create_router
 
 _FEATURE_COLS = ["tx_count", "account_age_days"]
 

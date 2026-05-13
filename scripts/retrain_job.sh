@@ -23,7 +23,7 @@ except NotFound:
 "
 
 echo "[2/4] Collecting new blocks from Etherscan..."
-python scripts/collect_blocks.py --config "${CONFIG}"
+python src/blockchain_ai/workflow/collect_blocks.py --config "${CONFIG}"
 
 echo "[3/4] Uploading updated block history to ${GCS_DATA} ..."
 python -c "
@@ -32,7 +32,7 @@ storage.Client().bucket(os.environ['GCS_BUCKET']).blob('ethereum-blocks.csv').up
 "
 
 echo "[4/4] Running training pipeline and uploading model + report..."
-python scripts/run_pipeline.py \
+python src/blockchain_ai/workflow/run_pipeline.py \
   --input "${DATA_FILE}" \
   --config "${CONFIG}"
 python -c "

@@ -1,5 +1,5 @@
 import pytest
-from blockchain_ai.job_store import JobStore
+from blockchain_ai.database.job_store import JobStore
 
 
 def test_get_returns_none_for_unknown_address(tmp_path):
