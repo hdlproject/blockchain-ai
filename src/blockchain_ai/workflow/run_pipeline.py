@@ -45,7 +45,7 @@ def main():
         from blockchain_ai.feature.feature_engineering import load_and_clean
         print(f"[1/3] Ingesting {args.input} ...")
         load_and_clean(args.input, processed_path, cfg)
-    else:
+    elif cfg.task == "classification":
         if args.input:
             processed_path = args.input
 
@@ -54,6 +54,8 @@ def main():
                 f"{processed_path} not found. Run collect_address_features.py first."
             )
         print(f"[1/3] Ingesting {args.input} ...")
+    else:
+        raise ValueError(f"Unsupported task: {cfg.task}")
 
     print(f"[2/3] Training {cfg.train.model_type} model ...")
     train_model(processed_path, model_path, test_path, cfg)
