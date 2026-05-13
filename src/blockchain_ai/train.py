@@ -40,11 +40,13 @@ def train_model(
             model = XGBClassifier(**train_config.hyperparameters)
         else:
             raise ValueError(f"Unknown model_type: {train_config.model_type!r}. Supported: 'xgboost'")
-    else:
+    elif cfg.task == "regression":
         if train_config.model_type == "xgboost":
             model = XGBRegressor(**train_config.hyperparameters)
         else:
             raise ValueError(f"Unknown model_type: {train_config.model_type!r}. Supported: 'xgboost'")
+    else:
+        raise ValueError(f"Unknown task: {cfg.task!r}")
 
     model.fit(X_train, y_train)
 
