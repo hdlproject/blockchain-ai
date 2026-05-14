@@ -2,7 +2,7 @@
 set -euo pipefail
 
 BUCKET="${GCS_BUCKET:?GCS_BUCKET env var is required}"
-CONFIG="${CONFIG:-configs/ethereum-gas-price.yaml}"
+CONFIG="${CONFIG:-configs/ethereum-gas-price-predictor.yaml}"
 DATA_FILE="data/raw/ethereum-blocks.csv"
 GCS_DATA="gs://${BUCKET}/ethereum-blocks.csv"
 
@@ -32,7 +32,7 @@ storage.Client().bucket(os.environ['GCS_BUCKET']).blob('ethereum-blocks.csv').up
 "
 
 echo "[4/4] Running training pipeline and uploading model + report..."
-python src/blockchain_ai/workflow/run_pipeline.py \
+python src/blockchain_ai/workflow/ethereum_gas_price_pipeline.py \
   --input "${DATA_FILE}" \
   --config "${CONFIG}"
 python -c "

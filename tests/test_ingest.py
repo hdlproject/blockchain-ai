@@ -6,7 +6,7 @@ from blockchain_ai.feature.feature_engineering import load_and_clean
 
 
 def _make_csv(tmp_path, df):
-    csv_path = tmp_path / "ethereum-transactions.csv"
+    csv_path = tmp_path / "ethereum-blocks.csv"
     df.to_csv(csv_path, index=False)
     return str(csv_path)
 

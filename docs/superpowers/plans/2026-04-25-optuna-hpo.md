@@ -16,7 +16,7 @@
 |---|---|
 | `src/blockchain_ai/tune.py` | Create |
 | `src/blockchain_ai/config.py` | Modify — add `HpoConfig` dataclass and parse `hpo` section |
-| `configs/ethereum-gas-price.yaml` | Modify — add optional `hpo` section |
+| `configs/ethereum-gas-price-predictor.yaml` | Modify — add optional `hpo` section |
 | `scripts/run_pipeline.py` | Modify — run HPO when `cfg.hpo` is not None |
 | `tests/test_tune.py` | Create |
 | `tests/test_config.py` | Modify — add tests for `HpoConfig` loading |
@@ -365,7 +365,7 @@ git commit -m "feat: add Optuna HPO module (tune.py)"
 
 **Files:**
 - Modify: `scripts/run_pipeline.py`
-- Modify: `configs/ethereum-gas-price.yaml`
+- Modify: `configs/ethereum-gas-price-predictor.yaml`
 
 - [ ] **Step 1: Update `run_pipeline.py` to call `run_hpo` when `cfg.hpo` is set**
 
@@ -379,7 +379,7 @@ Run the full regression pipeline: ingest -> [hpo] -> train -> evaluate.
 Usage:
     poetry run python scripts/run_pipeline.py \
         --raw data/raw/ethereum-transactions.zip \
-        --config configs/ethereum-gas-price.yaml
+        --config configs/ethereum-gas-price-predictor.yaml
 """
 import argparse
 import sys
@@ -402,8 +402,8 @@ def main():
 
     cfg = load_config(args.config)
 
-    processed_path = "data/processed/ethereum-transactions.csv"
-    test_path = "data/processed/ethereum-transactions-test.csv"
+    processed_path = "data/processed/ethereum-blocks.csv"
+    test_path = "data/processed/ethereum-blocks-test.csv"
     model_path = "models/model.joblib"
     report_path = "reports/report.json"
 
@@ -435,7 +435,7 @@ if __name__ == "__main__":
 
 - [ ] **Step 2: Add `hpo` section to the example config**
 
-In `configs/ethereum-gas-price.yaml`, add after the `train` section:
+In `configs/ethereum-gas-price-predictor.yaml`, add after the `train` section:
 
 ```yaml
 hpo:
@@ -450,7 +450,7 @@ Expected: all tests pass
 - [ ] **Step 4: Commit**
 
 ```bash
-git add scripts/run_pipeline.py configs/ethereum-gas-price.yaml
+git add scripts/run_pipeline.py configs/ethereum-gas-price-predictor.yaml
 git commit -m "feat: wire Optuna HPO into pipeline (run when hpo config present)"
 ```
 

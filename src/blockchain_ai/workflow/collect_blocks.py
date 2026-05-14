@@ -3,7 +3,7 @@
 Fetch the latest N blocks from Etherscan and write a feature CSV for training.
 
 Usage:
-    poetry run python src/blockchain_ai/workflow/collect_blocks.py --config configs/ethereum-gas-price.yaml
+    poetry run python src/blockchain_ai/workflow/collect_blocks.py --config configs/ethereum-gas-price-predictor.yaml
 """
 import argparse
 import signal

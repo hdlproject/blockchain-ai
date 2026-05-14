@@ -13,7 +13,7 @@ COPY configs/ ./configs/
 COPY app.py .
 
 ENV PYTHONPATH=/app/src
-ENV CONFIG=configs/ethereum-gas-price.yaml
+ENV CONFIG=configs/ethereum-gas-price-predictor.yaml
 
 EXPOSE 8080
 CMD uvicorn app:app --host 0.0.0.0 --port ${PORT:-8080}

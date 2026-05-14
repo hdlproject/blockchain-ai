@@ -30,13 +30,13 @@ Estimate Ethereum `gas_price` using XGBoost regression trained on the existing t
 - Drop raw `gas_price` from the feature set
 - Predictions are inverted with `expm1()` at evaluation time
 
-**Output:** `data/processed/ethereum-transactions.csv`
+**Output:** `data/processed/ethereum-blocks.csv`
 
 ---
 
 ## 2. Model Training (`train.py`)
 
-- Load `data/processed/ethereum-transactions.csv`
+- Load `data/processed/ethereum-blocks.csv`
 - Split `X` / `y` where `y = log_gas_price`
 - 80/20 train/test split, stratified by `transaction_type`
 - Replace `LinearRegression` with `XGBRegressor`:
@@ -44,13 +44,13 @@ Estimate Ethereum `gas_price` using XGBoost regression trained on the existing t
   - `subsample=0.8`, `colsample_bytree=0.8`, `random_state=42`
 - `model_type` parameter retained for future extensibility; default changed from `"linear"` to `"xgboost"`
 - Save model to `models/model.joblib`
-- Save test split to `data/processed/ethereum-transactions-test.csv`
+- Save test split to `data/processed/ethereum-blocks-test.csv`
 
 ---
 
 ## 3. Evaluation (`evaluate.py`)
 
-- Load test split from `data/processed/ethereum-transactions-test.csv`
+- Load test split from `data/processed/ethereum-blocks-test.csv`
 - Predict in log-space, exponentiate with `expm1()` before computing metrics
 - Metrics: RMSE, MAE, R² — all in Wei (interpretable units)
 - Report saved to `reports/report.json`
@@ -69,9 +69,9 @@ Estimate Ethereum `gas_price` using XGBoost regression trained on the existing t
 ```
 ethereum-transactions.zip
         ↓ ingest.py (drop cols, fill nulls, log-transform target)
-data/processed/ethereum-transactions.csv  (full processed)
+data/processed/ethereum-blocks.csv  (full processed)
         ↓ train.py (80/20 split, XGBoost on log_gas_price)
-models/model.joblib + data/processed/ethereum-transactions-test.csv (test split)
+models/model.joblib + data/processed/ethereum-blocks-test.csv (test split)
         ↓ evaluate.py (expm1 predictions, RMSE/MAE/R² in Wei)
 reports/report.json
 ```

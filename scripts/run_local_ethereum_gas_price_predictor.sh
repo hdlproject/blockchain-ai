@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
-# Run the full pipeline locally for testing.
+# Run the full Ethereum gas price pipeline locally for testing.
 # Collects fresh blocks from Etherscan, trains, and evaluates.
 #
 # Usage:
-#   ./scripts/run_local.sh [CONFIG]
+#   ./scripts/run_local_ethereum_gas_price_predictor.sh [CONFIG]
 #
 # Example:
-#   ./scripts/run_local.sh configs/ethereum-gas-price.yaml
+#   ./scripts/run_local_ethereum_gas_price_predictor.sh configs/ethereum-gas-price-predictor.yaml
 set -euo pipefail
 
-CONFIG="${1:-configs/ethereum-gas-price.yaml}"
+CONFIG="${1:-configs/ethereum-gas-price-predictor.yaml}"
 
 echo "==> Config : ${CONFIG}"
 echo ""
@@ -18,7 +18,7 @@ echo "[1/3] Collecting blocks from Etherscan..."
 poetry run python src/blockchain_ai/workflow/collect_blocks.py --config "${CONFIG}"
 
 echo "[2/3] Running training pipeline..."
-poetry run python src/blockchain_ai/workflow/run_pipeline.py \
+poetry run python src/blockchain_ai/workflow/ethereum_gas_price_pipeline.py \
   --input data/raw/ethereum-blocks.csv \
   --config "${CONFIG}"
 

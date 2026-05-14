@@ -75,7 +75,7 @@ gcloud run jobs deploy "${JOB}" \
   --region "${REGION}" \
   --memory 1Gi --cpu 1 \
   --task-timeout 3600 \
-  --set-env-vars "GCS_BUCKET=${BUCKET},CONFIG=configs/ethereum-gas-price.yaml" \
+  --set-env-vars "GCS_BUCKET=${BUCKET},CONFIG=configs/ethereum-gas-price-predictor.yaml" \
   --set-secrets "ETHERSCAN_API_KEY=ETHERSCAN_API_KEY:latest" \
   --project "${PROJECT_ID}"
 

@@ -9,8 +9,8 @@ collect:
   output_path: data/raw/ethereum-blocks.csv
 
 paths:
-  processed_path: data/processed/ethereum-transactions.csv
-  test_path: data/processed/ethereum-transactions-test.csv
+  processed_path: data/processed/ethereum-blocks.csv
+  test_path: data/processed/ethereum-blocks-test.csv
   report_path: reports/report.json
 
 ingest:

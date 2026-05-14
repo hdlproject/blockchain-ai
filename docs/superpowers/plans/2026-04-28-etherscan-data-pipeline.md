@@ -28,7 +28,7 @@
 | Modify | `tests/test_config.py` | Add tests for new config sections; make `stratify_col` optional |
 | Modify | `tests/test_train.py` | Remove `stratify_col` from fixtures |
 | Modify | `tests/test_tune.py` | Remove `stratify_col` from fixtures |
-| Modify | `configs/ethereum-gas-price.yaml` | Add `etherscan`/`collect` sections; replace features; remove `stratify_col` |
+| Modify | `configs/ethereum-gas-price-predictor.yaml` | Add `etherscan`/`collect` sections; replace features; remove `stratify_col` |
 | Modify | `app.py` | Add `load_dotenv()`; update `serve.fields` |
 | Modify | `pyproject.toml` | Add `requests`, `python-dotenv` dependencies |
 | Modify | `.gitignore` | Add `.env` |
@@ -830,7 +830,7 @@ Expected: FAIL — `collect_blocks` module not found.
 Fetch the latest N blocks from Etherscan and write a feature CSV for training.
 
 Usage:
-    poetry run python scripts/collect_blocks.py --config configs/ethereum-gas-price.yaml
+    poetry run python scripts/collect_blocks.py --config configs/ethereum-gas-price-predictor.yaml
 """
 import argparse
 import sys
@@ -1084,7 +1084,7 @@ git commit -m "refactor: replace zip-based ingest with plain CSV"
 
 **Files:**
 - Modify: `scripts/run_pipeline.py`
-- Modify: `configs/ethereum-gas-price.yaml`
+- Modify: `configs/ethereum-gas-price-predictor.yaml`
 
 - [ ] **Step 1: Update `scripts/run_pipeline.py` — rename `--raw` to `--input`**
 
@@ -1096,7 +1096,7 @@ Run the full regression pipeline: ingest -> [hpo] -> train -> evaluate.
 Usage:
     poetry run python scripts/run_pipeline.py \
         --input data/raw/blocks.csv \
-        --config configs/ethereum-gas-price.yaml
+        --config configs/ethereum-gas-price-predictor.yaml
 """
 import argparse
 import sys
@@ -1150,7 +1150,7 @@ if __name__ == "__main__":
     main()
 ```
 
-- [ ] **Step 2: Replace `configs/ethereum-gas-price.yaml`**
+- [ ] **Step 2: Replace `configs/ethereum-gas-price-predictor.yaml`**
 
 ```yaml
 etherscan:
@@ -1241,7 +1241,7 @@ Expected: All pass.
 - [ ] **Step 4: Commit**
 
 ```bash
-git add scripts/run_pipeline.py configs/ethereum-gas-price.yaml
+git add scripts/run_pipeline.py configs/ethereum-gas-price-predictor.yaml
 git commit -m "feat: update pipeline and config for Etherscan block features"
 ```
 

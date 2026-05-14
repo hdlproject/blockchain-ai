@@ -2352,7 +2352,7 @@ git commit -m "feat: add address classification router with async job pattern"
 """
 FastAPI server built from a pipeline YAML config.
 Usage:
-  CONFIG=configs/ethereum-gas-price.yaml uvicorn app:app --reload
+  CONFIG=configs/ethereum-gas-price-predictor.yaml uvicorn app:app --reload
   CONFIG=configs/address-classifier.yaml uvicorn app:app --reload
 """
 import io
@@ -2375,7 +2375,7 @@ sys.path.insert(0, str(Path(__file__).parent / "src"))
 from blockchain_ai.config import FieldConfig, ServeConfig, load_config
 from blockchain_ai.etherscan import EtherscanClient
 
-_CONFIG_PATH = os.environ.get("CONFIG", "configs/ethereum-gas-price.yaml")
+_CONFIG_PATH = os.environ.get("CONFIG", "configs/ethereum-gas-price-predictor.yaml")
 _cfg = load_config(_CONFIG_PATH)
 
 if _cfg.serve is None:
@@ -2547,7 +2547,7 @@ elif task == "classification":
 - [ ] **Step 2: Verify regression app still starts**
 
 ```bash
-CONFIG=configs/ethereum-gas-price.yaml python -c "import app; print('regression app OK')"
+CONFIG=configs/ethereum-gas-price-predictor.yaml python -c "import app; print('regression app OK')"
 ```
 
 Expected: `regression app OK` (may warn about missing model/API key, that's fine)
@@ -2743,7 +2743,7 @@ Run the full ML pipeline: ingest/features -> [hpo] -> train -> evaluate.
 Regression usage:
     poetry run python scripts/run_pipeline.py \
         --input data/raw/ethereum-blocks.csv \
-        --config configs/ethereum-gas-price.yaml
+        --config configs/ethereum-gas-price-predictor.yaml
 
 Classification usage (features CSV must already exist from collect_address_features.py):
     poetry run python scripts/run_pipeline.py \
@@ -2775,8 +2775,8 @@ def main():
         from blockchain_ai.ingest import load_and_clean
         from blockchain_ai.tune import run_hpo
 
-        processed_path = "data/processed/ethereum-transactions.csv"
-        test_path = "data/processed/ethereum-transactions-test.csv"
+        processed_path = "data/processed/ethereum-blocks.csv"
+        test_path = "data/processed/ethereum-blocks-test.csv"
         model_path = "models/model.joblib"
         report_path = "reports/report.json"
 

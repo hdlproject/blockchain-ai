@@ -15,7 +15,7 @@ Replace hardcoded constants in `ingest.py` and `train.py` with a YAML config fil
 Location: `configs/<experiment-name>.yaml`
 
 ```yaml
-# configs/ethereum-gas-price.yaml
+# configs/ethereum-gas-price-predictor.yaml
 
 ingest:
   drop_cols:
@@ -109,7 +109,7 @@ Unchanged — no hardcoded config.
 ```bash
 poetry run python scripts/run_pipeline.py \
     --raw data/raw/ethereum-transactions.zip \
-    --config configs/ethereum-gas-price.yaml
+    --config configs/ethereum-gas-price-predictor.yaml
 ```
 
 ---
@@ -124,7 +124,7 @@ Add `pyyaml>=6.0` to `pyproject.toml`.
 
 | File | Action |
 |---|---|
-| `configs/ethereum-gas-price.yaml` | Create |
+| `configs/ethereum-gas-price-predictor.yaml` | Create |
 | `src/blockchain_ai/config.py` | Create |
 | `src/blockchain_ai/ingest.py` | Modify |
 | `src/blockchain_ai/train.py` | Modify |

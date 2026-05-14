@@ -76,8 +76,10 @@ def _compute_features(address: str, txs: list[dict], token_txs: list[dict]) -> d
 def _entropy(values: list[int], n_bins: int) -> float:
     if not values:
         return 0.0
+
     counts = [0] * n_bins
     for v in values:
         counts[v % n_bins] += 1
+
     total = len(values)
     return -sum((c / total) * math.log2(c / total) for c in counts if c > 0)

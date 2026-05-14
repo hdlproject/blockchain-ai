@@ -45,7 +45,7 @@ Single file: `ui/streamlit_app.py`. Reads `API_URL` from env (default `http://lo
 - On error: `st.error` with message
 
 ### Tab 2 — Manual Prediction
-- 5 input widgets matching `serve.fields` from `configs/ethereum-gas-price.yaml`:
+- 5 input widgets matching `serve.fields` from `configs/ethereum-gas-price-predictor.yaml`:
   - `base_fee_gwei` → `st.number_input`, min > 0, default 15.0
   - `gas_used_ratio` → `st.slider`, 0.0–1.0, default 0.5
   - `hour_of_day` → `st.slider`, 0–23, default 14

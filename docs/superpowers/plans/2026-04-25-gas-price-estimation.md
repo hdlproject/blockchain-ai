@@ -599,8 +599,8 @@ def main():
     parser.add_argument("--model-type", default="xgboost", help="Model type (default: xgboost)")
     args = parser.parse_args()
 
-    processed_path = "data/processed/ethereum-transactions.csv"
-    test_path = "data/processed/ethereum-transactions-test.csv"
+    processed_path = "data/processed/ethereum-blocks.csv"
+    test_path = "data/processed/ethereum-blocks-test.csv"
     model_path = "models/model.joblib"
     report_path = "reports/report.json"
 

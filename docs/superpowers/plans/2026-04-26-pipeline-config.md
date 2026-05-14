@@ -14,7 +14,7 @@
 
 | File | Action | Responsibility |
 |---|---|---|
-| `configs/ethereum-gas-price.yaml` | Create | Ethereum gas price experiment config |
+| `configs/ethereum-gas-price-predictor.yaml` | Create | Ethereum gas price experiment config |
 | `src/blockchain_ai/config.py` | Create | Load + validate YAML → typed dataclasses |
 | `src/blockchain_ai/ingest.py` | Modify | Accept `IngestConfig` instead of hardcoded constants |
 | `src/blockchain_ai/train.py` | Modify | Accept `TrainConfig` instead of hardcoded values |
@@ -273,7 +273,7 @@ git commit -m "feat: add config module with YAML loading and typed dataclasses"
 ## Task 3: Create the default experiment config YAML
 
 **Files:**
-- Create: `configs/ethereum-gas-price.yaml`
+- Create: `configs/ethereum-gas-price-predictor.yaml`
 
 - [ ] **Step 1: Create configs/ directory and YAML**
 
@@ -281,7 +281,7 @@ git commit -m "feat: add config module with YAML loading and typed dataclasses"
 mkdir -p configs
 ```
 
-Create `configs/ethereum-gas-price.yaml`:
+Create `configs/ethereum-gas-price-predictor.yaml`:
 
 ```yaml
 ingest:
@@ -318,7 +318,7 @@ train:
 ```bash
 poetry run python -c "
 from blockchain_ai.config import load_config
-cfg = load_config('configs/ethereum-gas-price.yaml')
+cfg = load_config('configs/ethereum-gas-price-predictor.yaml')
 print('ingest target_col:', cfg.ingest.target_col)
 print('train model_type:', cfg.train.model_type)
 print('n_estimators:', cfg.train.hyperparameters['n_estimators'])
@@ -335,7 +335,7 @@ n_estimators: 300
 - [ ] **Step 3: Commit**
 
 ```bash
-git add configs/ethereum-gas-price.yaml
+git add configs/ethereum-gas-price-predictor.yaml
 git commit -m "feat: add ethereum-gas-price experiment config"
 ```
 
@@ -718,7 +718,7 @@ Run the full regression pipeline: ingest -> train -> evaluate.
 Usage:
     poetry run python scripts/run_pipeline.py \
         --raw data/raw/ethereum-transactions.zip \
-        --config configs/ethereum-gas-price.yaml
+        --config configs/ethereum-gas-price-predictor.yaml
 """
 import argparse
 import sys
@@ -740,8 +740,8 @@ def main():
 
     cfg = load_config(args.config)
 
-    processed_path = "data/processed/ethereum-transactions.csv"
-    test_path = "data/processed/ethereum-transactions-test.csv"
+    processed_path = "data/processed/ethereum-blocks.csv"
+    test_path = "data/processed/ethereum-blocks-test.csv"
     model_path = "models/model.joblib"
     report_path = "reports/report.json"
 
@@ -776,7 +776,7 @@ Expected: all tests PASS.
 ```bash
 poetry run python scripts/run_pipeline.py \
     --raw data/raw/ethereum-transactions.zip \
-    --config configs/ethereum-gas-price.yaml
+    --config configs/ethereum-gas-price-predictor.yaml
 ```
 
 Expected output (approximate):

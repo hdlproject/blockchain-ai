@@ -27,7 +27,7 @@ GET /predict/address/{address}
 
 ## Config
 
-Single config file `configs/address-classifier.yaml`. `PipelineConfig` gains three new optional fields (`goplus`, `ofac`, `forta`) populated only when `task = "classification"`. Existing gas price config (`configs/ethereum-gas-price.yaml`) is unchanged.
+Single config file `configs/address-classifier.yaml`. `PipelineConfig` gains three new optional fields (`goplus`, `ofac`, `forta`) populated only when `task = "classification"`. Existing gas price config (`configs/ethereum-gas-price-predictor.yaml`) is unchanged.
 
 ```yaml
 task: classification

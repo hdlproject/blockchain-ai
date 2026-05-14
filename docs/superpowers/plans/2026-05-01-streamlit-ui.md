@@ -323,7 +323,7 @@ git commit -m "feat: add Streamlit UI for gas price predictor"
 
 In one terminal:
 ```bash
-CONFIG=configs/ethereum-gas-price.yaml uvicorn app:app --reload
+CONFIG=configs/ethereum-gas-price-predictor.yaml uvicorn app:app --reload
 ```
 Expected: `Uvicorn running on http://127.0.0.1:8000`
 

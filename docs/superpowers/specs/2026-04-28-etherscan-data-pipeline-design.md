@@ -34,7 +34,7 @@ The existing feature set (`value`, `gas`, `max_fee_per_gas`, etc.) consists of f
 ETHERSCAN_API_KEY=your_key_here
 ```
 
-### `ethereum-gas-price.yaml` additions
+### `ethereum-gas-price-predictor.yaml` additions
 ```yaml
 etherscan:
   base_url: https://api.etherscan.io/api
@@ -97,7 +97,7 @@ One-shot collector. Reads config, fetches blocks, computes features, writes CSV.
 
 - `--raw` argument renamed to `--input`
 
-### `ethereum-gas-price.yaml` (modified)
+### `ethereum-gas-price-predictor.yaml` (modified)
 
 - `train.stratify_col` removed — the new dataset has no categorical column suitable for stratification; `train_test_split` will use plain random split instead
 - `TrainConfig.stratify_col` becomes optional (`str | None`, defaults to `None`)
