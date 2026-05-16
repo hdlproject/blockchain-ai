@@ -83,16 +83,8 @@ class GoPlusConfig:
 
 @dataclass
 class OFACConfig:
-    alt_url: str
+    sdn_url: str
     timeout_sec: int
-
-
-@dataclass
-class FortaConfig:
-    graphql_url: str
-    timeout_sec: int
-    max_alerts: int
-    scam_bot_ids: list[str]
 
 
 @dataclass
@@ -107,7 +99,6 @@ class PipelineConfig:
     collect: "CollectConfig | None" = None
     goplus: "GoPlusConfig | None" = None
     ofac: "OFACConfig | None" = None
-    forta: "FortaConfig | None" = None
 
 
 def load_config(path: str) -> PipelineConfig:
@@ -223,7 +214,7 @@ def load_config(path: str) -> PipelineConfig:
         )
 
     if task == "classification":
-        for section in ("goplus", "ofac", "forta"):
+        for section in ("goplus", "ofac"):
             if section not in raw:
                 raise ValueError(f"Config task=classification requires section: '{section}'")
 
@@ -243,25 +234,12 @@ def load_config(path: str) -> PipelineConfig:
     ofac_cfg = None
     if "ofac" in raw:
         o = raw["ofac"]
-        for key in ("alt_url", "timeout_sec"):
+        for key in ("sdn_url", "timeout_sec"):
             if key not in o:
                 raise ValueError(f"Config ofac section missing required key: '{key}'")
         ofac_cfg = OFACConfig(
-            alt_url=o["alt_url"],
+            sdn_url=o["sdn_url"],
             timeout_sec=int(o["timeout_sec"]),
-        )
-
-    forta_cfg = None
-    if "forta" in raw:
-        fo = raw["forta"]
-        for key in ("graphql_url", "timeout_sec", "max_alerts", "scam_bot_ids"):
-            if key not in fo:
-                raise ValueError(f"Config forta section missing required key: '{key}'")
-        forta_cfg = FortaConfig(
-            graphql_url=fo["graphql_url"],
-            timeout_sec=int(fo["timeout_sec"]),
-            max_alerts=int(fo["max_alerts"]),
-            scam_bot_ids=fo["scam_bot_ids"],
         )
 
     return PipelineConfig(
@@ -285,5 +263,4 @@ def load_config(path: str) -> PipelineConfig:
         collect=collect_cfg,
         goplus=goplus_cfg,
         ofac=ofac_cfg,
-        forta=forta_cfg,
     )

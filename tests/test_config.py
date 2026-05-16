@@ -290,15 +290,8 @@ goplus:
   timeout_sec: 30
 
 ofac:
-  alt_url: https://www.treasury.gov/ofac/downloads/alt.csv
+  sdn_url: https://www.treasury.gov/ofac/downloads/sdn.csv
   timeout_sec: 60
-
-forta:
-  graphql_url: https://api.forta.network/graphql
-  timeout_sec: 30
-  max_alerts: 500
-  scam_bot_ids:
-    - "0xabc"
 
 etherscan:
   base_url: https://api.etherscan.io/v2/api
@@ -335,9 +328,6 @@ def test_load_classification_config(tmp_path):
     assert cfg.goplus.chain_id == 1
     assert cfg.ofac is not None
     assert cfg.ofac.timeout_sec == 60
-    assert cfg.forta is not None
-    assert cfg.forta.max_alerts == 500
-    assert cfg.forta.scam_bot_ids == ["0xabc"]
     assert cfg.serve is not None
     assert cfg.serve.confidence_threshold == 0.5
     assert cfg.serve.db_path == "data/jobs.db"

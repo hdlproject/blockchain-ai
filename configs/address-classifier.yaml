@@ -7,16 +7,8 @@ goplus:
   timeout_sec: 30
 
 ofac:
-  alt_url: https://www.treasury.gov/ofac/downloads/alt.csv
+  sdn_url: https://www.treasury.gov/ofac/downloads/sdn.csv
   timeout_sec: 60
-
-forta:
-  graphql_url: https://api.forta.network/graphql
-  timeout_sec: 30
-  max_alerts: 500
-  scam_bot_ids:
-    - "0x6aa2012744a3eb210fc4e4b794d9df59684d36d502fd9ebb481d58f19b917d51"
-    - "0x4c7e56a9a753e29ca92bd57dd593bdab0c03e762bdd04e2bc578cb82b842c1f3"
 
 etherscan:
   base_url: https://api.etherscan.io/v2/api

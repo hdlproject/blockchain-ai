@@ -9,11 +9,11 @@ from blockchain_ai.connector.schema import (
 def test_address_record_to_row_pipes_sources_and_flags():
     r = AddressRecord(
         address="0xabc", chain_id=1, label="sanctioned", confidence=1.0,
-        sources=["ofac", "forta"], flags=["ofac_sdn", "scam_alert"],
+        sources=["ofac", "goplus"], flags=["ofac_sdn", "scam_alert"],
         fetched_at="2026-01-01T00:00:00+00:00",
     )
     row = r.to_row()
-    assert row["sources"] == "ofac|forta"
+    assert row["sources"] == "ofac|goplus"
     assert row["flags"] == "ofac_sdn|scam_alert"
 
 

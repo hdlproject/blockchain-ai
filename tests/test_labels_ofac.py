@@ -2,17 +2,19 @@ from unittest.mock import patch, MagicMock
 from blockchain_ai.connector.ofac import OFACFetcher
 from blockchain_ai.config import OFACConfig
 
+# Minimal sdn.csv rows: 12 columns, ETH addresses embedded in Remarks (col 11)
 _SAMPLE_CSV = (
-    "ent_num,alt_num,alt_type,alt_name,alt_remarks\n"
-    "12345,1,Digital Currency Address - ETH,0xABCDEF1234567890ABCDEF1234567890ABCDEF12,\n"
-    "12345,2,aka,Some Name,\n"
-    "99999,1,Digital Currency Address - BTC,1BitcoinAddress,\n"
-    "88888,1,Digital Currency Address - ETH,0x1111111111111111111111111111111111111111,\n"
+    "ent_num,SDN_Name,SDN_Type,Program,Title,Call_Sign,Vess_type,Tonnage,GRT,Vess_flag,Vess_owner,Remarks\n"
+    "12345,Evil Corp,Individual,SDGT,-0-,-0-,-0-,-0-,-0-,-0-,-0-,"
+    "\"Digital Currency Address - ETH 0xabcdef1234567890abcdef1234567890abcdef12; "
+    "Digital Currency Address - ETH 0x1111111111111111111111111111111111111111;\"\n"
+    "99999,No Crypto,Individual,SDGT,-0-,-0-,-0-,-0-,-0-,-0-,-0-,Some other remarks\n"
+    "88888,Short Row,Individual\n"
 )
 
 
 def _fetcher():
-    return OFACFetcher(alt_url="https://example.com/alt.csv", timeout_sec=10)
+    return OFACFetcher(sdn_url="https://example.com/sdn.csv", timeout_sec=10)
 
 
 def _mock_response(text):
@@ -23,9 +25,9 @@ def _mock_response(text):
 
 
 def test_from_config():
-    cfg = OFACConfig(alt_url="https://example.com/alt.csv", timeout_sec=60)
+    cfg = OFACConfig(sdn_url="https://example.com/sdn.csv", timeout_sec=60)
     f = OFACFetcher.from_config(cfg)
-    assert f._alt_url == "https://example.com/alt.csv"
+    assert f._sdn_url == "https://example.com/sdn.csv"
 
 
 def test_returns_only_eth_addresses():
@@ -34,7 +36,7 @@ def test_returns_only_eth_addresses():
     assert len(records) == 2
 
 
-def test_excludes_btc_addresses():
+def test_skips_rows_without_eth():
     with patch("requests.get", return_value=_mock_response(_SAMPLE_CSV)):
         records = _fetcher().fetch_eth_addresses()
     for r in records:

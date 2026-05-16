@@ -22,18 +22,18 @@ def test_deduplicates_same_address(tmp_path):
 def test_merges_flags_and_sources(tmp_path):
     f1, f2 = tmp_path / "a.csv", tmp_path / "b.csv"
     write_address_csv([_addr("0xccc", "sanctioned", 1.0, ["ofac"], ["ofac_sdn"])], f1)
-    write_address_csv([_addr("0xccc", "scammer", 0.9, ["forta"], ["phishing_contract"])], f2)
+    write_address_csv([_addr("0xccc", "scammer", 0.9, ["goplus"], ["phishing_contract"])], f2)
     out = tmp_path / "out.csv"
     records = unify_addresses([f1, f2], out)
     r = records[0]
-    assert set(r.sources) == {"ofac", "forta"}
+    assert set(r.sources) == {"ofac", "goplus"}
     assert "ofac_sdn" in r.flags
     assert "phishing_contract" in r.flags
 
 
 def test_keeps_highest_confidence_label(tmp_path):
     f1, f2 = tmp_path / "a.csv", tmp_path / "b.csv"
-    write_address_csv([_addr("0xddd", "suspicious", 0.4, ["forta"], ["low"])], f1)
+    write_address_csv([_addr("0xddd", "suspicious", 0.4, ["goplus"], ["low"])], f1)
     write_address_csv([_addr("0xddd", "sanctioned", 1.0, ["ofac"], ["ofac_sdn"])], f2)
     out = tmp_path / "out.csv"
     records = unify_addresses([f1, f2], out)
