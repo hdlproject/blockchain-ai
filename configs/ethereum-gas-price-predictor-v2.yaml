@@ -1,0 +1,48 @@
+etherscan:
+  base_url: https://api.etherscan.io/v2/api
+  chain_id: 1
+  rate_limit_per_sec: 5
+  timeout_sec: 30
+
+collect:
+  n_blocks: 2000
+  output_path: data/raw/ethereum-blocks.csv
+
+paths:
+  processed_path: data/processed/ethereum-blocks.csv
+  test_path: data/processed/ethereum-blocks-test.csv
+  report_path: reports/gas_price_predictor_v2.json
+
+ingest:
+  feature_cols:
+    - base_fee_gwei
+    - gas_used_ratio
+    - hour_of_day
+    - day_of_week
+    - base_fee_trend
+  fill_zero_cols: []
+  target_col: log_next_base_fee_gwei
+
+train:
+  target_col: log_next_base_fee_gwei
+  model_type: lstm
+  test_size: 0.2
+  hyperparameters:
+    sequence_length: 30
+    hidden_size: 64
+    num_layers: 2
+    dropout: 0.2
+    epochs: 50
+    lr: 0.001
+    batch_size: 32
+
+serve:
+  title: Ethereum Base Fee Predictor v2 (LSTM)
+  description: >
+    Predicts the next block's base fee using an LSTM sequence model trained on
+    recent block history. Requires sequence context — no single-row POST endpoint.
+  model_path: models/gas_price_predictor_v2.joblib
+  target_description: Predicted next-block base fee
+  target_unit: Gwei
+  log_transform: true
+  fields: {}
