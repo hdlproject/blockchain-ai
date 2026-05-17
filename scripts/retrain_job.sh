@@ -38,7 +38,7 @@ python src/blockchain_ai/workflow/ethereum_gas_price_pipeline.py \
 python -c "
 from google.cloud import storage; import os
 bucket = storage.Client().bucket(os.environ['GCS_BUCKET'])
-bucket.blob('model.joblib').upload_from_filename('models/model.joblib')
-bucket.blob('report.json').upload_from_filename('reports/report.json')
+bucket.blob('gas_price_predictor.joblib').upload_from_filename('models/gas_price_predictor.joblib')
+bucket.blob('gas_price_predictor.json').upload_from_filename('reports/gas_price_predictor.json')
 "
 echo "Done."

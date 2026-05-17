@@ -10,6 +10,14 @@ ofac:
   sdn_url: https://www.treasury.gov/ofac/downloads/sdn.csv
   timeout_sec: 60
 
+scamsniffer:
+  url: https://raw.githubusercontent.com/scamsniffer/scam-database/main/blacklist/address.json
+  timeout_sec: 30
+
+mew:
+  url: https://raw.githubusercontent.com/MyEtherWallet/ethereum-lists/master/src/addresses/addresses-darklist.json
+  timeout_sec: 30
+
 etherscan:
   base_url: https://api.etherscan.io/v2/api
   chain_id: 1
@@ -50,7 +58,7 @@ train:
 paths:
   processed_path: data/processed/features/address_features.csv
   test_path: data/processed/address_features_test.csv
-  report_path: reports/address_classifier_report.json
+  report_path: reports/address_classifier.json
 
 serve:
   title: Ethereum Address Classifier

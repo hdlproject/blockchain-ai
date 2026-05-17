@@ -29,7 +29,7 @@ else
   gcloud artifacts repositories create "${REPO_NAME}" \
     --repository-format docker \
     --location "${REGION}" \
-    --description "Docker images for blockchain-ai Cloud Run service and retrain job" \
+    --description "Docker images for gas-predictor Cloud Run service and retrain job" \
     --project "${PROJECT_ID}"
   echo "      Repository created."
 fi

@@ -31,13 +31,13 @@ def _load_metrics_gcs(bucket_name: str) -> dict | None:
 
 
 def predict_latest(api_url: str, n_blocks: int = 1) -> dict:
-    resp = requests.get(f"{api_url}/predict/latest", params={"n_blocks": n_blocks}, timeout=60)
+    resp = requests.get(f"{api_url}/predict/gas-price/latest", params={"n_blocks": n_blocks}, timeout=60)
     resp.raise_for_status()
     return resp.json()
 
 
 def predict_manual(api_url: str, payload: dict) -> dict:
-    resp = requests.post(f"{api_url}/predict", json=payload, timeout=10)
+    resp = requests.post(f"{api_url}/predict/gas-price", json=payload, timeout=10)
     resp.raise_for_status()
     return resp.json()
 

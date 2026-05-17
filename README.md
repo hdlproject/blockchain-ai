@@ -96,9 +96,9 @@ FastAPI docs: `http://localhost:8000/docs`
 ```
 
 Deploys:
-- `blockchain-ai` — FastAPI prediction service
-- `blockchain-ai-ui` — Streamlit UI
-- `blockchain-ai-retrain` — daily Cloud Run Job (retrains + uploads model + report to GCS)
+- `gas-predictor` — FastAPI prediction service
+- `gas-predictor-ui` — Streamlit UI
+- `gas-predictor-retrain` — daily Cloud Run Job (retrains + uploads model + report to GCS)
 
 ## Features used by the model
 

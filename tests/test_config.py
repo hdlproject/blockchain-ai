@@ -147,7 +147,7 @@ train:
 serve:
   title: Test API
   description: A test predictor.
-  model_path: models/model.joblib
+  model_path: models/gas_price_predictor.joblib
   target_description: Gas price
   target_unit: Wei
   log_transform: true
@@ -177,7 +177,7 @@ def test_load_config_serve_fields(tmp_path):
     cfg = load_config(path)
     s = cfg.serve
     assert s.title == "Test API"
-    assert s.model_path == "models/model.joblib"
+    assert s.model_path == "models/gas_price_predictor.joblib"
     assert s.log_transform is True
     assert set(s.fields.keys()) == {"value", "gas"}
 

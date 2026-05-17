@@ -36,7 +36,7 @@ def main():
     processed_path = cfg.paths.processed_path
     test_path = cfg.paths.test_path
     report_path = cfg.paths.report_path
-    model_path = cfg.serve.model_path if cfg.serve else "models/model.joblib"
+    model_path = cfg.serve.model_path if cfg.serve else "models/gas_price_predictor.joblib"
 
     if cfg.task == "regression":
         if not args.input:

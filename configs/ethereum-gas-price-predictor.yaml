@@ -11,7 +11,7 @@ collect:
 paths:
   processed_path: data/processed/ethereum-blocks.csv
   test_path: data/processed/ethereum-blocks-test.csv
-  report_path: reports/report.json
+  report_path: reports/gas_price_predictor.json
 
 ingest:
   feature_cols:
@@ -40,7 +40,7 @@ serve:
   description: >
     Predicts the next block's base fee (in Gwei) using recent network congestion signals.
     All inputs are derived from block-level data — no per-transaction fields required.
-  model_path: models/model.joblib
+  model_path: models/gas_price_predictor.joblib
   target_description: Predicted next-block base fee
   target_unit: Gwei
   log_transform: true

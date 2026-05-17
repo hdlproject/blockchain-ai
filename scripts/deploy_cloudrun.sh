@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# Deploy blockchain-ai serving service + daily retraining job to GCP Cloud Run.
+# Deploy gas-predictor serving service + daily retraining job to GCP Cloud Run.
 #
 # Prerequisites (one-time setup):
 #   gsutil mb -l REGION gs://BUCKET_NAME
-#   gsutil cp models/model.joblib gs://BUCKET_NAME/model.joblib   # initial model
+#   gsutil cp models/gas_price_predictor.joblib gs://BUCKET_NAME/gas_price_predictor.joblib   # initial model
 #   echo -n "YOUR_KEY" | gcloud secrets create ETHERSCAN_API_KEY --data-file=-
 #   gcloud services enable run.googleapis.com cloudscheduler.googleapis.com \
 #     cloudbuild.googleapis.com secretmanager.googleapis.com
@@ -15,14 +15,14 @@ set -euo pipefail
 PROJECT_ID="${1:-$(gcloud config get-value project)}"
 REGION="${2:-us-central1}"
 BUCKET="${3:?Usage: $0 [PROJECT_ID] [REGION] GCS_BUCKET}"
-SERVICE="blockchain-ai"
-UI_SERVICE="blockchain-ai-ui"
-JOB="blockchain-ai-retrain"
+SERVICE="gas-predictor"
+UI_SERVICE="gas-predictor-ui"
+JOB="gas-predictor-retrain"
 REPO="${REGION}-docker.pkg.dev/${PROJECT_ID}/cloud-run-source-deploy"
 IMAGE="${REPO}/${SERVICE}"
 UI_IMAGE="${REPO}/${UI_SERVICE}"
 JOB_IMAGE="${REPO}/${SERVICE}-job"
-SA="blockchain-ai-scheduler@${PROJECT_ID}.iam.gserviceaccount.com"
+SA="gas-predictor-scheduler@${PROJECT_ID}.iam.gserviceaccount.com"
 
 echo "==> Project : ${PROJECT_ID}"
 echo "==> Region  : ${REGION}"
@@ -38,7 +38,7 @@ gcloud run deploy "${SERVICE}" \
   --memory 512Mi --cpu 1 \
   --min-instances 0 --max-instances 3 \
   --allow-unauthenticated \
-  --set-env-vars "MODEL_PATH=gs://${BUCKET}/model.joblib" \
+  --set-env-vars "MODEL_PATH=gs://${BUCKET}/gas_price_predictor.joblib" \
   --set-secrets "ETHERSCAN_API_KEY=ETHERSCAN_API_KEY:latest" \
   --project "${PROJECT_ID}"
 
@@ -80,7 +80,7 @@ gcloud run jobs deploy "${JOB}" \
   --project "${PROJECT_ID}"
 
 echo "[5/6] Setting up scheduler service account..."
-gcloud iam service-accounts create blockchain-ai-scheduler \
+gcloud iam service-accounts create gas-predictor-scheduler \
   --display-name "Blockchain AI Scheduler" \
   --project "${PROJECT_ID}" 2>/dev/null || true
 gcloud run jobs add-iam-policy-binding "${JOB}" \

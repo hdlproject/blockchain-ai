@@ -88,6 +88,18 @@ class OFACConfig:
 
 
 @dataclass
+class ScamSnifferConfig:
+    url: str
+    timeout_sec: int
+
+
+@dataclass
+class MEWConfig:
+    url: str
+    timeout_sec: int
+
+
+@dataclass
 class PipelineConfig:
     ingest: IngestConfig
     train: TrainConfig
@@ -99,6 +111,8 @@ class PipelineConfig:
     collect: "CollectConfig | None" = None
     goplus: "GoPlusConfig | None" = None
     ofac: "OFACConfig | None" = None
+    scamsniffer: "ScamSnifferConfig | None" = None
+    mew: "MEWConfig | None" = None
 
 
 def load_config(path: str) -> PipelineConfig:
@@ -242,6 +256,22 @@ def load_config(path: str) -> PipelineConfig:
             timeout_sec=int(o["timeout_sec"]),
         )
 
+    scamsniffer_cfg = None
+    if "scamsniffer" in raw:
+        s = raw["scamsniffer"]
+        for key in ("url", "timeout_sec"):
+            if key not in s:
+                raise ValueError(f"Config scamsniffer section missing required key: '{key}'")
+        scamsniffer_cfg = ScamSnifferConfig(url=s["url"], timeout_sec=int(s["timeout_sec"]))
+
+    mew_cfg = None
+    if "mew" in raw:
+        m = raw["mew"]
+        for key in ("url", "timeout_sec"):
+            if key not in m:
+                raise ValueError(f"Config mew section missing required key: '{key}'")
+        mew_cfg = MEWConfig(url=m["url"], timeout_sec=int(m["timeout_sec"]))
+
     return PipelineConfig(
         task=task,
         ingest=IngestConfig(
@@ -263,4 +293,6 @@ def load_config(path: str) -> PipelineConfig:
         collect=collect_cfg,
         goplus=goplus_cfg,
         ofac=ofac_cfg,
+        scamsniffer=scamsniffer_cfg,
+        mew=mew_cfg,
     )
