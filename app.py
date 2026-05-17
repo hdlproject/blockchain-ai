@@ -71,3 +71,34 @@ elif task == "classification":
     _job_store = JobStore(serve.db_path)
     _feature_extractor = AddressFeatureExtractor(_etherscan_client) if _etherscan_client else None
     app.include_router(create_router(_job_store, model, _feature_extractor, feature_cols, serve.confidence_threshold))
+
+_CONFIG_V2_PATH = os.environ.get("CONFIG_V2")
+if _CONFIG_V2_PATH:
+    _cfg_v2 = load_config(_CONFIG_V2_PATH)
+    if _cfg_v2.serve is None:
+        print(f"WARNING: CONFIG_V2 config at {_CONFIG_V2_PATH} has no 'serve' section — v2 router skipped.")
+    else:
+        _raw_model_path_v2 = os.environ.get("MODEL_PATH_V2", _cfg_v2.serve.model_path)
+        model_v2 = None
+        try:
+            if _raw_model_path_v2.startswith("gs://"):
+                import tempfile
+                from google.cloud import storage as gcs
+                _tmp_v2 = tempfile.NamedTemporaryFile(suffix=".joblib", delete=False)
+                _bucket_v2, _, _blob_v2 = _raw_model_path_v2[5:].partition("/")
+                gcs.Client().bucket(_bucket_v2).blob(_blob_v2).download_to_filename(_tmp_v2.name)
+                _model_path_v2 = _tmp_v2.name
+            else:
+                _model_path_v2 = _raw_model_path_v2
+            model_v2 = joblib.load(_model_path_v2)
+        except Exception as exc:
+            print(f"WARNING: v2 model could not be loaded ({exc}). v2 endpoint will return 503.")
+        from blockchain_ai.server.router_gas_price_v2 import create_router as create_router_v2
+        app.include_router(
+            create_router_v2(
+                _cfg_v2.serve,
+                _cfg_v2.ingest.feature_cols,
+                model_v2,
+                _etherscan_client,
+            )
+        )
