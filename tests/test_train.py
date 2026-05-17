@@ -102,3 +102,41 @@ def test_train_model_classification_model_has_predict_proba(tmp_path):
     train_model(str(csv_path), str(model_path), str(tmp_path / "t.csv"),
                 _cfg("label", task="classification"))
     assert hasattr(joblib.load(model_path), "predict_proba")
+
+
+def test_train_model_lstm_saves_model_and_has_predict(tmp_path):
+    n = 50
+    feature_cols = ["base_fee_gwei", "gas_used_ratio", "hour_of_day", "day_of_week", "base_fee_trend"]
+    data = pd.DataFrame({
+        "base_fee_gwei": [15.0 + i * 0.01 for i in range(n)],
+        "gas_used_ratio": [0.5] * n,
+        "hour_of_day": [i % 24 for i in range(n)],
+        "day_of_week": [i % 7 for i in range(n)],
+        "base_fee_trend": [0.01] * n,
+        "log_next_base_fee_gwei": [2.7 + i * 0.001 for i in range(n)],
+    })
+    csv_path = tmp_path / "blocks.csv"
+    model_path = tmp_path / "model.joblib"
+    data.to_csv(csv_path, index=False)
+    train_model(
+        str(csv_path),
+        str(model_path),
+        str(tmp_path / "test.csv"),
+        _cfg(
+            "log_next_base_fee_gwei",
+            model_type="lstm",
+            hyperparameters={
+                "sequence_length": 5,
+                "hidden_size": 8,
+                "num_layers": 1,
+                "dropout": 0.0,
+                "epochs": 2,
+                "lr": 0.01,
+                "batch_size": 4,
+            },
+        ),
+    )
+    assert model_path.exists()
+    loaded = joblib.load(model_path)
+    assert hasattr(loaded, "predict")
+    assert hasattr(loaded, "sequence_length")

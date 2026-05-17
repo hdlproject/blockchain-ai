@@ -43,8 +43,13 @@ def train_model(
     elif cfg.task == "regression":
         if train_config.model_type == "xgboost":
             model = XGBRegressor(**train_config.hyperparameters)
+        elif train_config.model_type == "lstm":
+            from blockchain_ai.model.lstm import LSTMWrapper
+            model = LSTMWrapper(**train_config.hyperparameters)
         else:
-            raise ValueError(f"Unknown model_type: {train_config.model_type!r}. Supported: 'xgboost'")
+            raise ValueError(
+                f"Unknown model_type: {train_config.model_type!r}. Supported: 'xgboost', 'lstm'"
+            )
     else:
         raise ValueError(f"Unknown task: {cfg.task!r}")
 
