@@ -3,12 +3,12 @@
 Run the full ML pipeline: ingest/features -> [hpo] -> train -> evaluate.
 
 Regression usage:
-    poetry run python src/blockchain_ai/workflow/ethereum_gas_price_pipeline.py \
+    poetry run python src/blockchain_ai/workflow/run_pipeline.py \
         --input data/raw/ethereum-blocks.csv \
         --config configs/ethereum-gas-price-predictor.yaml
 
 Classification usage (features CSV must already exist from collect_address_features.py):
-    poetry run python src/blockchain_ai/workflow/ethereum_gas_price_pipeline.py \
+    poetry run python src/blockchain_ai/workflow/run_pipeline.py \
         --config configs/address-classifier.yaml
 """
 import argparse

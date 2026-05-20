@@ -158,7 +158,7 @@ uvicorn app:app --reload
 ```
 collect_blocks.py → data/raw/ethereum-blocks.csv
     ↓
-ethereum_gas_price_pipeline.py --config configs/ethereum-gas-price-predictor-v2.yaml
+run_pipeline.py --config configs/ethereum-gas-price-predictor-v2.yaml
     ↓ feature_engineering.py (unchanged)
 data/processed/ethereum-blocks.csv
     ↓

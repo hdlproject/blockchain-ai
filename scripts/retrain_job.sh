@@ -32,7 +32,7 @@ storage.Client().bucket(os.environ['GCS_BUCKET']).blob('ethereum-blocks.csv').up
 "
 
 echo "[4/4] Running training pipeline and uploading model + report..."
-python src/blockchain_ai/workflow/ethereum_gas_price_pipeline.py \
+python src/blockchain_ai/workflow/run_pipeline.py \
   --input "${DATA_FILE}" \
   --config "${CONFIG}"
 python -c "

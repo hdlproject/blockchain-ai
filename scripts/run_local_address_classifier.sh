@@ -21,7 +21,7 @@ echo "[2/4] Collecting on-chain features from Etherscan..."
 poetry run python src/blockchain_ai/workflow/collect_address_features.py --config "${CONFIG}"
 
 echo "[3/4] Running training pipeline..."
-poetry run python src/blockchain_ai/workflow/ethereum_gas_price_pipeline.py \
+poetry run python src/blockchain_ai/workflow/run_pipeline.py \
   --config "${CONFIG}"
 
 echo "[4/4] Starting API + Streamlit UI..."

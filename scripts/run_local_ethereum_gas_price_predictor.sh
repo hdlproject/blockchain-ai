@@ -18,7 +18,7 @@ echo "[1/3] Collecting blocks from Etherscan..."
 poetry run python src/blockchain_ai/workflow/collect_blocks.py --config "${CONFIG}"
 
 echo "[2/3] Running training pipeline..."
-poetry run python src/blockchain_ai/workflow/ethereum_gas_price_pipeline.py \
+poetry run python src/blockchain_ai/workflow/run_pipeline.py \
   --input data/raw/ethereum-blocks.csv \
   --config "${CONFIG}"
 
