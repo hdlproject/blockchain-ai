@@ -8,11 +8,14 @@ import pandas as pd
 import requests
 import streamlit as st
 
-API_URL_DEFAULT = os.environ.get("API_URL", "http://localhost:8000")
 _GCS_BUCKET = os.environ.get("GCS_BUCKET")
 REPORT_PATH = Path(__file__).parent.parent / "reports" / "report.json"
 ADDRESS_REPORT_PATH = Path(__file__).parent.parent / "reports" / "address_classifier.json"
-_TARGET_KEY = "predicted_next-block_base_fee"
+GAS_V2_REPORT_PATH = Path(__file__).parent.parent / "reports" / "gas_price_predictor_v2.json"
+
+_DEFAULT_GAS_V1_URL = os.environ.get("GAS_V1_API_URL", "http://localhost:8000")
+_DEFAULT_GAS_V2_URL = os.environ.get("GAS_V2_API_URL", "http://localhost:8001")
+_DEFAULT_ADDR_URL = os.environ.get("ADDR_API_URL", "http://localhost:8002")
 
 
 def load_metrics(report_path: Path) -> dict | None:
@@ -40,6 +43,12 @@ def predict_latest(api_url: str, n_blocks: int = 1) -> dict:
 
 def predict_manual(api_url: str, payload: dict) -> dict:
     resp = requests.post(f"{api_url}/predict/gas-price", json=payload, timeout=10)
+    resp.raise_for_status()
+    return resp.json()
+
+
+def predict_latest_v2(api_url: str, n_blocks: int = 1) -> dict:
+    resp = requests.get(f"{api_url}/predict/gas-price/v2/latest", params={"n_blocks": n_blocks}, timeout=60)
     resp.raise_for_status()
     return resp.json()
 
@@ -139,30 +148,61 @@ def _render_address_result(result: dict) -> None:
             col2.progress(float(prob), text=f"{prob:.1%}")
 
 
+def _handle_request_errors(exc: Exception, status: object) -> None:
+    api_url = st.session_state.get("gas_v1_url", "")
+    if isinstance(exc, requests.ConnectionError):
+        status.update(label="Connection failed", state="error")
+        st.error(f"Could not connect to the API. Is the backend running?")
+    elif isinstance(exc, requests.Timeout):
+        status.update(label="Request timed out", state="error")
+        st.error("The request timed out. Please try again.")
+    elif isinstance(exc, requests.HTTPError):
+        code = exc.response.status_code if exc.response else "?"
+        detail = exc.response.json().get("detail", str(exc)) if exc.response else str(exc)
+        status.update(label=f"API error {code}", state="error")
+        st.error(f"**HTTP {code}:** {detail}")
+    else:
+        status.update(label="Unexpected error", state="error")
+        with st.expander("Error details"):
+            st.exception(exc)
+
+
 def main() -> None:
     st.set_page_config(page_title="Ethereum AI", layout="wide")
 
     with st.sidebar:
         st.title("Ethereum AI")
 
-        if "api_url" not in st.session_state:
-            st.session_state.api_url = API_URL_DEFAULT
-        st.session_state.api_url = st.text_input("API URL", value=st.session_state.api_url)
+        st.subheader("API Endpoints")
+        for key, label, default in [
+            ("gas_v1_url", "Gas Price v1", _DEFAULT_GAS_V1_URL),
+            ("gas_v2_url", "Gas Price v2 (LSTM)", _DEFAULT_GAS_V2_URL),
+            ("addr_url", "Address Classifier", _DEFAULT_ADDR_URL),
+        ]:
+            if key not in st.session_state:
+                st.session_state[key] = default
+            st.session_state[key] = st.text_input(label, value=st.session_state[key])
 
         st.divider()
-        st.subheader("Gas Price Model")
+        st.subheader("Model Metrics")
+
         metrics = _load_metrics_gcs(_GCS_BUCKET) if _GCS_BUCKET else load_metrics(REPORT_PATH)
         if metrics:
+            st.caption("Gas Price v1")
             st.metric("R²", f"{metrics['r2']:.4f}")
             st.metric("RMSE", f"{metrics['rmse']:.6f}")
             st.metric("MAE", f"{metrics['mae']:.6f}")
-        else:
-            st.caption("Metrics not available")
+
+        v2_metrics = load_metrics(GAS_V2_REPORT_PATH)
+        if v2_metrics:
+            st.caption("Gas Price v2 (LSTM)")
+            st.metric("R²", f"{v2_metrics['r2']:.4f}", key="v2_r2")
+            st.metric("RMSE", f"{v2_metrics['rmse']:.6f}", key="v2_rmse")
+            st.metric("MAE", f"{v2_metrics['mae']:.6f}", key="v2_mae")
 
         addr_metrics = load_metrics(ADDRESS_REPORT_PATH)
         if addr_metrics:
-            st.divider()
-            st.subheader("Address Classifier")
+            st.caption("Address Classifier")
             st.metric("Accuracy", f"{addr_metrics['accuracy']:.4f}")
             st.metric("F1 Macro", f"{addr_metrics['f1_macro']:.4f}")
             if "f1_sanctioned" in addr_metrics:
@@ -170,49 +210,31 @@ def main() -> None:
             if "f1_phishing" in addr_metrics:
                 st.metric("F1 Phishing", f"{addr_metrics['f1_phishing']:.4f}")
 
-    tab1, tab2, tab3 = st.tabs(["Gas Price: Live", "Gas Price: Manual", "Address Classifier"])
+    tab1, tab2, tab3, tab4 = st.tabs([
+        "Gas Price: Live", "Gas Price: Manual", "Gas Price v2 (LSTM)", "Address Classifier",
+    ])
 
     with tab1:
-        st.header("Live Prediction")
+        st.header("Gas Price: Live Prediction")
         st.write("Fetches the latest Ethereum block and predicts the next N base fees automatically.")
         st.caption("Fetches 11 blocks from Etherscan — typically takes 15–30 seconds.")
         n_blocks = st.slider("Blocks to predict", min_value=1, max_value=20, value=1,
                              help="Step 1 uses the exact EIP-1559 formula. Steps 2+ use auto-regression.")
-        if st.button("Fetch latest block & predict"):
+        if st.button("Fetch latest block & predict", key="btn_v1_live"):
             with st.status("Fetching latest block data...", expanded=True) as status:
                 try:
                     st.write("Calling Etherscan API for the last 10 blocks...")
-                    result = predict_latest(st.session_state.api_url, n_blocks=n_blocks)
+                    result = predict_latest(st.session_state.gas_v1_url, n_blocks=n_blocks)
                     st.write("Running inference...")
                     status.update(label="Done!", state="complete", expanded=False)
                     _render_prediction(result)
                     _render_base_fee_chart(result)
                     st.info(f"Latest block: {result.get('block_number', 'N/A')}")
-                except requests.ConnectionError:
-                    status.update(label="Connection failed", state="error")
-                    st.error(
-                        f"Could not connect to the API at `{st.session_state.api_url}`. "
-                        "Is the FastAPI server running?"
-                    )
-                except requests.Timeout:
-                    status.update(label="Request timed out", state="error")
-                    st.error(
-                        "The request timed out (60s). Etherscan may be slow right now — please try again."
-                    )
-                except requests.HTTPError as e:
-                    code = e.response.status_code if e.response else "?"
-                    detail = e.response.json().get("detail", str(e)) if e.response else str(e)
-                    status.update(label=f"API error {code}", state="error")
-                    st.error(f"**HTTP {code}:** {detail}")
-                    if code == 503:
-                        st.warning("Check that `ETHERSCAN_API_KEY` is set and the model has been trained.")
                 except Exception as e:
-                    status.update(label="Unexpected error", state="error")
-                    with st.expander("Error details"):
-                        st.exception(e)
+                    _handle_request_errors(e, status)
 
     with tab2:
-        st.header("Manual Prediction")
+        st.header("Gas Price: Manual Prediction")
         st.write("Enter block features manually to get a prediction.")
         base_fee_gwei = st.number_input(
             "Base Fee (Gwei)", min_value=0.001, value=15.0, step=0.1,
@@ -234,8 +256,7 @@ def main() -> None:
             "Base Fee Trend", value=0.02, step=0.001, format="%.4f",
             help="10-block momentum: (current - 10_blocks_ago) / 10_blocks_ago. Positive = fees rising.",
         )
-
-        if st.button("Predict"):
+        if st.button("Predict", key="btn_v1_manual"):
             payload = {
                 "base_fee_gwei": base_fee_gwei,
                 "gas_used_ratio": gas_used_ratio,
@@ -245,40 +266,51 @@ def main() -> None:
             }
             with st.spinner("Running prediction..."):
                 try:
-                    result = predict_manual(st.session_state.api_url, payload)
+                    result = predict_manual(st.session_state.gas_v1_url, payload)
                     st.success("Prediction complete")
                     _render_prediction(result)
                 except requests.ConnectionError:
-                    st.error(
-                        f"Could not connect to the API at `{st.session_state.api_url}`. "
-                        "Is the FastAPI server running?"
-                    )
+                    st.error("Could not connect to the Gas Price v1 API. Is the backend running?")
                 except requests.Timeout:
                     st.error("The request timed out. Please try again.")
                 except requests.HTTPError as e:
                     code = e.response.status_code if e.response else "?"
                     detail = e.response.json().get("detail", str(e)) if e.response else str(e)
                     st.error(f"**HTTP {code}:** {detail}")
-                    if code == 503:
-                        st.warning("The model may not be loaded yet. Check that the retrain job has run.")
                 except Exception as e:
                     with st.expander("Error details"):
                         st.exception(e)
 
     with tab3:
+        st.header("Gas Price v2: Live Prediction (LSTM)")
+        st.write("Feeds recent block history into the LSTM sequence model.")
+        st.caption("Fetches blocks from Etherscan — typically takes 15–30 seconds.")
+        n_blocks_v2 = st.slider("Blocks to predict", min_value=1, max_value=20, value=1, key="slider_v2")
+        if st.button("Fetch latest blocks & predict", key="btn_v2_live"):
+            with st.status("Fetching block sequence...", expanded=True) as status:
+                try:
+                    st.write("Calling Etherscan API...")
+                    result = predict_latest_v2(st.session_state.gas_v2_url, n_blocks=n_blocks_v2)
+                    st.write("Running LSTM inference...")
+                    status.update(label="Done!", state="complete", expanded=False)
+                    _render_prediction(result)
+                    _render_base_fee_chart(result)
+                    st.info(f"Latest block: {result.get('block_number', 'N/A')}")
+                except Exception as e:
+                    _handle_request_errors(e, status)
+
+    with tab4:
         st.header("Address Classifier")
         st.write("Classify an Ethereum address as sanctioned, phishing, or scammer.")
         st.caption(
             "On-chain features are fetched from Etherscan on first request — typically takes 15–30 seconds."
         )
-
         address = st.text_input(
             "Ethereum Address",
             placeholder="0x...",
             help="A 42-character hex address starting with 0x",
         )
-
-        if st.button("Classify"):
+        if st.button("Classify", key="btn_addr"):
             if not address:
                 st.warning("Please enter an Ethereum address.")
             elif not (address.startswith("0x") and len(address) == 42):
@@ -287,7 +319,7 @@ def main() -> None:
                 with st.status("Classifying address...", expanded=True) as status:
                     try:
                         st.write(f"Submitting {address}...")
-                        result = classify_address(st.session_state.api_url, address)
+                        result = classify_address(st.session_state.addr_url, address)
                         if result["status"] == "done":
                             status.update(label="Classification complete", state="complete", expanded=False)
                             _render_address_result(result)
@@ -297,29 +329,8 @@ def main() -> None:
                         else:
                             status.update(label="Classification failed", state="error")
                             st.error(f"Error: {result.get('error', 'Unknown error')}")
-                    except requests.ConnectionError:
-                        status.update(label="Connection failed", state="error")
-                        st.error(
-                            f"Could not connect to the API at `{st.session_state.api_url}`. "
-                            "Is the FastAPI server running?"
-                        )
-                    except requests.Timeout:
-                        status.update(label="Request timed out", state="error")
-                        st.error("The request timed out. Please try again.")
-                    except requests.HTTPError as e:
-                        code = e.response.status_code if e.response else "?"
-                        detail = e.response.json().get("detail", str(e)) if e.response else str(e)
-                        status.update(label=f"API error {code}", state="error")
-                        st.error(f"**HTTP {code}:** {detail}")
-                        if code == 503:
-                            st.warning(
-                                "Address classifier model may not be loaded. "
-                                "Start the API with the address classifier config."
-                            )
                     except Exception as e:
-                        status.update(label="Unexpected error", state="error")
-                        with st.expander("Error details"):
-                            st.exception(e)
+                        _handle_request_errors(e, status)
 
 
 if __name__ == "__main__":

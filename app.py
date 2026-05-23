@@ -64,8 +64,12 @@ def health():
 
 
 if model is not None and task == "regression":
-    from blockchain_ai.server.router_gas_price import create_router
-    app.include_router(create_router(serve, feature_cols, model, _etherscan_client))
+    if _cfg.train.model_type == "lstm":
+        from blockchain_ai.server.router_gas_price_v2 import create_router as create_router_v2
+        app.include_router(create_router_v2(serve, feature_cols, model, _etherscan_client))
+    else:
+        from blockchain_ai.server.router_gas_price import create_router
+        app.include_router(create_router(serve, feature_cols, model, _etherscan_client))
 
 elif model is not None and task == "classification":
     from blockchain_ai.feature.address_features import AddressFeatureExtractor

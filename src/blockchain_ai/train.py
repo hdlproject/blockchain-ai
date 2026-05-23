@@ -2,7 +2,6 @@ import joblib
 import pandas as pd
 from pathlib import Path
 from sklearn.model_selection import train_test_split
-from xgboost import XGBRegressor, XGBClassifier
 from blockchain_ai.config import PipelineConfig, TrainConfig
 
 LABEL_TO_INT = {"sanctioned": 0, "phishing": 1, "scammer": 2}
@@ -37,11 +36,13 @@ def train_model(
 
     if cfg.task == "classification":
         if train_config.model_type == "xgboost":
+            from xgboost import XGBClassifier
             model = XGBClassifier(**train_config.hyperparameters)
         else:
             raise ValueError(f"Unknown model_type: {train_config.model_type!r}. Supported: 'xgboost'")
     elif cfg.task == "regression":
         if train_config.model_type == "xgboost":
+            from xgboost import XGBRegressor
             model = XGBRegressor(**train_config.hyperparameters)
         elif train_config.model_type == "lstm":
             from blockchain_ai.model.lstm import LSTMWrapper
