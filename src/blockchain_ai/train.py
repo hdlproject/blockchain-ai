@@ -5,7 +5,7 @@ from sklearn.model_selection import train_test_split
 from xgboost import XGBRegressor, XGBClassifier
 from blockchain_ai.config import PipelineConfig, TrainConfig
 
-LABEL_TO_INT = {"sanctioned": 0, "scammer": 1, "phishing": 2}
+LABEL_TO_INT = {"sanctioned": 0, "phishing": 1, "scammer": 2}
 
 
 def train_model(

@@ -1,6 +1,6 @@
 import pandas as pd
 
-LABEL_ENCODER: dict[int, str] = {0: "sanctioned", 1: "scammer", 2: "phishing"}
+LABEL_ENCODER: dict[int, str] = {0: "sanctioned", 1: "phishing", 2: "scammer"}
 
 
 def predict_address(
@@ -17,8 +17,7 @@ def predict_address(
     return {
         "label": label,
         "probabilities": {
-            "sanctioned": round(float(proba[0]), 4),
-            "scammer": round(float(proba[1]), 4),
-            "phishing": round(float(proba[2]), 4),
+            name: round(float(proba[idx]), 4) if idx < len(proba) else 0.0
+            for idx, name in LABEL_ENCODER.items()
         },
     }

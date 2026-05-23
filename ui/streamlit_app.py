@@ -1,5 +1,6 @@
 import json
 import os
+import time
 from pathlib import Path
 
 import altair as alt
@@ -10,6 +11,7 @@ import streamlit as st
 API_URL_DEFAULT = os.environ.get("API_URL", "http://localhost:8000")
 _GCS_BUCKET = os.environ.get("GCS_BUCKET")
 REPORT_PATH = Path(__file__).parent.parent / "reports" / "report.json"
+ADDRESS_REPORT_PATH = Path(__file__).parent.parent / "reports" / "address_classifier.json"
 _TARGET_KEY = "predicted_next-block_base_fee"
 
 
@@ -42,6 +44,19 @@ def predict_manual(api_url: str, payload: dict) -> dict:
     return resp.json()
 
 
+def classify_address(api_url: str, address: str, max_wait: int = 60) -> dict:
+    resp = requests.get(f"{api_url}/predict/address/{address}", timeout=10)
+    resp.raise_for_status()
+    result = resp.json()
+    deadline = time.time() + max_wait
+    while result["status"] == "pending" and time.time() < deadline:
+        time.sleep(2)
+        resp = requests.get(f"{api_url}/predict/address/{address}", timeout=10)
+        resp.raise_for_status()
+        result = resp.json()
+    return result
+
+
 def _render_prediction(result: dict) -> None:
     step1 = result["predictions"][0]
     col1, col2 = st.columns(2)
@@ -64,7 +79,6 @@ def _render_base_fee_chart(result: dict) -> None:
         "method": "Exact (EIP-1559)" if p["method"] == "formula" else "Model estimate",
     } for p in predictions])
 
-    # bridge: connect last historical point to first prediction for visual continuity
     bridge_df = pd.concat([
         hist_df.iloc[[-1]][["block", "base_fee_gwei"]],
         pred_df[["block", "base_fee_gwei"]],
@@ -106,28 +120,57 @@ def _render_base_fee_chart(result: dict) -> None:
     st.altair_chart(hist_line + hist_dots + pred_line + pred_dots, use_container_width=True)
 
 
+def _render_address_result(result: dict) -> None:
+    label = result.get("label", "unknown")
+    probabilities = result.get("probabilities", {})
+
+    if label == "unknown":
+        st.info(f"Label: **unknown** (confidence below threshold)")
+    elif label in ("sanctioned", "scammer"):
+        st.error(f"Label: **{label}**")
+    else:
+        st.warning(f"Label: **{label}**")
+
+    if probabilities:
+        st.subheader("Probabilities")
+        for cls, prob in sorted(probabilities.items(), key=lambda x: -x[1]):
+            col1, col2 = st.columns([1, 4])
+            col1.write(f"**{cls}**")
+            col2.progress(float(prob), text=f"{prob:.1%}")
+
+
 def main() -> None:
-    st.set_page_config(page_title="Ethereum Gas Price Predictor", layout="wide")
+    st.set_page_config(page_title="Ethereum AI", layout="wide")
 
     with st.sidebar:
-        st.title("Ethereum Gas Price Predictor")
-        st.caption("Predicts the next block's base fee using recent network congestion signals.")
+        st.title("Ethereum AI")
 
         if "api_url" not in st.session_state:
             st.session_state.api_url = API_URL_DEFAULT
         st.session_state.api_url = st.text_input("API URL", value=st.session_state.api_url)
 
         st.divider()
-        st.subheader("Model Metrics")
+        st.subheader("Gas Price Model")
         metrics = _load_metrics_gcs(_GCS_BUCKET) if _GCS_BUCKET else load_metrics(REPORT_PATH)
         if metrics:
             st.metric("R²", f"{metrics['r2']:.4f}")
             st.metric("RMSE", f"{metrics['rmse']:.6f}")
             st.metric("MAE", f"{metrics['mae']:.6f}")
         else:
-            st.warning("Model metrics not available")
+            st.caption("Metrics not available")
 
-    tab1, tab2 = st.tabs(["Live Prediction", "Manual Prediction"])
+        addr_metrics = load_metrics(ADDRESS_REPORT_PATH)
+        if addr_metrics:
+            st.divider()
+            st.subheader("Address Classifier")
+            st.metric("Accuracy", f"{addr_metrics['accuracy']:.4f}")
+            st.metric("F1 Macro", f"{addr_metrics['f1_macro']:.4f}")
+            if "f1_sanctioned" in addr_metrics:
+                st.metric("F1 Sanctioned", f"{addr_metrics['f1_sanctioned']:.4f}")
+            if "f1_phishing" in addr_metrics:
+                st.metric("F1 Phishing", f"{addr_metrics['f1_phishing']:.4f}")
+
+    tab1, tab2, tab3 = st.tabs(["Gas Price: Live", "Gas Price: Manual", "Address Classifier"])
 
     with tab1:
         st.header("Live Prediction")
@@ -221,6 +264,62 @@ def main() -> None:
                 except Exception as e:
                     with st.expander("Error details"):
                         st.exception(e)
+
+    with tab3:
+        st.header("Address Classifier")
+        st.write("Classify an Ethereum address as sanctioned, phishing, or scammer.")
+        st.caption(
+            "On-chain features are fetched from Etherscan on first request — typically takes 15–30 seconds."
+        )
+
+        address = st.text_input(
+            "Ethereum Address",
+            placeholder="0x...",
+            help="A 42-character hex address starting with 0x",
+        )
+
+        if st.button("Classify"):
+            if not address:
+                st.warning("Please enter an Ethereum address.")
+            elif not (address.startswith("0x") and len(address) == 42):
+                st.error("Invalid address format. Must be 42 characters starting with 0x.")
+            else:
+                with st.status("Classifying address...", expanded=True) as status:
+                    try:
+                        st.write(f"Submitting {address}...")
+                        result = classify_address(st.session_state.api_url, address)
+                        if result["status"] == "done":
+                            status.update(label="Classification complete", state="complete", expanded=False)
+                            _render_address_result(result)
+                        elif result["status"] == "pending":
+                            status.update(label="Timed out", state="error")
+                            st.error("Classification is still running. Try again in a moment.")
+                        else:
+                            status.update(label="Classification failed", state="error")
+                            st.error(f"Error: {result.get('error', 'Unknown error')}")
+                    except requests.ConnectionError:
+                        status.update(label="Connection failed", state="error")
+                        st.error(
+                            f"Could not connect to the API at `{st.session_state.api_url}`. "
+                            "Is the FastAPI server running?"
+                        )
+                    except requests.Timeout:
+                        status.update(label="Request timed out", state="error")
+                        st.error("The request timed out. Please try again.")
+                    except requests.HTTPError as e:
+                        code = e.response.status_code if e.response else "?"
+                        detail = e.response.json().get("detail", str(e)) if e.response else str(e)
+                        status.update(label=f"API error {code}", state="error")
+                        st.error(f"**HTTP {code}:** {detail}")
+                        if code == 503:
+                            st.warning(
+                                "Address classifier model may not be loaded. "
+                                "Start the API with the address classifier config."
+                            )
+                    except Exception as e:
+                        status.update(label="Unexpected error", state="error")
+                        with st.expander("Error details"):
+                            st.exception(e)
 
 
 if __name__ == "__main__":
