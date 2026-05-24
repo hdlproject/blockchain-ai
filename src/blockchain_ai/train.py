@@ -27,11 +27,13 @@ def train_model(
         y = y.map(LABEL_TO_INT)
         stratify = y
 
+    shuffle = train_config.model_type != "lstm"
     X_train, X_test, y_train, y_test = train_test_split(
         X, y,
         test_size=train_config.test_size,
         random_state=train_config.hyperparameters.get("random_state", 42),
         stratify=stratify,
+        shuffle=shuffle,
     )
 
     if cfg.task == "classification":

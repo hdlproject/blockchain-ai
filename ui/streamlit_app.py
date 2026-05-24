@@ -14,8 +14,8 @@ ADDRESS_REPORT_PATH = Path(__file__).parent.parent / "reports" / "address_classi
 GAS_V2_REPORT_PATH = Path(__file__).parent.parent / "reports" / "gas_price_predictor_v2.json"
 
 _DEFAULT_GAS_V1_URL = os.environ.get("GAS_V1_API_URL", "http://localhost:8000")
-_DEFAULT_GAS_V2_URL = os.environ.get("GAS_V2_API_URL", "http://localhost:8001")
-_DEFAULT_ADDR_URL = os.environ.get("ADDR_API_URL", "http://localhost:8002")
+_DEFAULT_GAS_V2_URL = os.environ.get("GAS_V2_API_URL", "http://localhost:8000")
+_DEFAULT_ADDR_URL = os.environ.get("ADDR_API_URL", "http://localhost:8000")
 
 
 def load_metrics(report_path: Path) -> dict | None:
@@ -48,7 +48,7 @@ def predict_manual(api_url: str, payload: dict) -> dict:
 
 
 def predict_latest_v2(api_url: str, n_blocks: int = 1) -> dict:
-    resp = requests.get(f"{api_url}/predict/gas-price/v2/latest", params={"n_blocks": n_blocks}, timeout=60)
+    resp = requests.get(f"{api_url}/predict/gas-price/v2/latest", params={"n_blocks": n_blocks}, timeout=120)
     resp.raise_for_status()
     return resp.json()
 
@@ -196,9 +196,9 @@ def main() -> None:
         v2_metrics = load_metrics(GAS_V2_REPORT_PATH)
         if v2_metrics:
             st.caption("Gas Price v2 (LSTM)")
-            st.metric("R²", f"{v2_metrics['r2']:.4f}", key="v2_r2")
-            st.metric("RMSE", f"{v2_metrics['rmse']:.6f}", key="v2_rmse")
-            st.metric("MAE", f"{v2_metrics['mae']:.6f}", key="v2_mae")
+            st.metric("R²", f"{v2_metrics['r2']:.4f}")
+            st.metric("RMSE", f"{v2_metrics['rmse']:.6f}")
+            st.metric("MAE", f"{v2_metrics['mae']:.6f}")
 
         addr_metrics = load_metrics(ADDRESS_REPORT_PATH)
         if addr_metrics:
@@ -284,7 +284,7 @@ def main() -> None:
     with tab3:
         st.header("Gas Price v2: Live Prediction (LSTM)")
         st.write("Feeds recent block history into the LSTM sequence model.")
-        st.caption("Fetches blocks from Etherscan — typically takes 15–30 seconds.")
+        st.caption("Fetches 40 blocks from Etherscan — typically takes 30–60 seconds.")
         n_blocks_v2 = st.slider("Blocks to predict", min_value=1, max_value=20, value=1, key="slider_v2")
         if st.button("Fetch latest blocks & predict", key="btn_v2_live"):
             with st.status("Fetching block sequence...", expanded=True) as status:

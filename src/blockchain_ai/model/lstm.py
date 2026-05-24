@@ -31,6 +31,7 @@ class LSTMWrapper:
         epochs: int = 50,
         lr: float = 0.001,
         batch_size: int = 32,
+        patience: int = 10,
     ):
         self.sequence_length = sequence_length
         self.hidden_size = hidden_size
@@ -39,6 +40,7 @@ class LSTMWrapper:
         self.epochs = epochs
         self.lr = lr
         self.batch_size = batch_size
+        self.patience = patience
         self.feature_cols: list[str] = []
         self._net: _LSTMNet | None = None
 
@@ -91,7 +93,7 @@ class LSTMWrapper:
                 patience = 0
             else:
                 patience += 1
-                if patience >= 5:
+                if patience >= self.patience:
                     break
 
         return self

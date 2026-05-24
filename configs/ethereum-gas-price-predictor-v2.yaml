@@ -35,6 +35,7 @@ train:
     epochs: 50
     lr: 0.001
     batch_size: 32
+    patience: 10
 
 serve:
   title: Ethereum Base Fee Predictor v2 (LSTM)
