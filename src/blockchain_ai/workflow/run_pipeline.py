@@ -53,15 +53,22 @@ def main():
             raise FileNotFoundError(
                 f"{processed_path} not found. Run collect_address_features.py first."
             )
-        print(f"[1/3] Ingesting {args.input} ...")
+        print(f"[1/3] Ingesting {processed_path} ...")
+    elif cfg.task == "clustering":
+        if not Path(processed_path).exists():
+            raise FileNotFoundError(
+                f"{processed_path} not found. Run collect_transactions.py first."
+            )
+        print(f"[1/3] Using {processed_path} ...")
     else:
         raise ValueError(f"Unsupported task: {cfg.task}")
 
     print(f"[2/3] Training {cfg.train.model_type} model ...")
     train_model(processed_path, model_path, test_path, cfg)
 
+    eval_path = processed_path if cfg.task == "clustering" else test_path
     print(f"[3/3] Evaluating model ...")
-    report = evaluate_model(test_path, model_path, report_path, cfg)
+    report = evaluate_model(eval_path, model_path, report_path, cfg)
 
     print(f"\nPipeline complete. Report:")
     for k, v in report.items():
