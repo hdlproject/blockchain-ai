@@ -115,6 +115,21 @@ class PipelineConfig:
     mew: "MEWConfig | None" = None
 
 
+def _parse_fields(fields_raw: dict) -> dict[str, FieldConfig]:
+    return {
+        name: FieldConfig(
+            type=meta["type"],
+            description=meta["description"].strip(),
+            example=meta["example"],
+            ge=meta.get("ge"),
+            gt=meta.get("gt"),
+            le=meta.get("le"),
+            lt=meta.get("lt"),
+        )
+        for name, meta in fields_raw.items()
+    }
+
+
 def load_config(path: str) -> PipelineConfig:
     p = Path(path)
     if not p.exists():
@@ -166,18 +181,7 @@ def load_config(path: str) -> PipelineConfig:
                 target_description=s["target_description"],
                 target_unit=s["target_unit"],
                 log_transform=bool(s.get("log_transform", False)),
-                fields={
-                    name: FieldConfig(
-                        type=meta["type"],
-                        description=meta["description"].strip(),
-                        example=meta["example"],
-                        ge=meta.get("ge"),
-                        gt=meta.get("gt"),
-                        le=meta.get("le"),
-                        lt=meta.get("lt"),
-                    )
-                    for name, meta in s["fields"].items()
-                },
+                fields=_parse_fields(s["fields"]),
             )
         elif task == "classification":
             for key in ("model_path", "confidence_threshold", "db_path"):
@@ -198,18 +202,7 @@ def load_config(path: str) -> PipelineConfig:
                 model_path=s["model_path"],
                 title=s["title"],
                 description=s["description"].strip(),
-                fields={
-                    name: FieldConfig(
-                        type=meta["type"],
-                        description=meta["description"].strip(),
-                        example=meta["example"],
-                        ge=meta.get("ge"),
-                        gt=meta.get("gt"),
-                        le=meta.get("le"),
-                        lt=meta.get("lt"),
-                    )
-                    for name, meta in (s.get("fields") or {}).items()
-                },
+                fields=_parse_fields(s["fields"]),
             )
 
     etherscan_cfg = None

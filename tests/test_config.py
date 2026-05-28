@@ -395,6 +395,7 @@ serve:
     assert cfg.train.model_type == "dbscan"
     assert cfg.paths.test_path == ""
 
+
 def test_clustering_config_paths_test_path_optional(tmp_path):
     yaml_content = """
 task: clustering
