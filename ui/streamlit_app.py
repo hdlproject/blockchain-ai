@@ -16,6 +16,8 @@ GAS_V2_REPORT_PATH = Path(__file__).parent.parent / "reports" / "gas_price_predi
 _DEFAULT_GAS_V1_URL = os.environ.get("GAS_V1_API_URL", "http://localhost:8000")
 _DEFAULT_GAS_V2_URL = os.environ.get("GAS_V2_API_URL", "http://localhost:8000")
 _DEFAULT_ADDR_URL = os.environ.get("ADDR_API_URL", "http://localhost:8000")
+_DEFAULT_TXANOMALY_URL = os.environ.get("TXANOMALY_API_URL", "http://localhost:8000")
+TXANOMALY_REPORT_PATH = Path(__file__).parent.parent / "reports" / "transaction_anomaly.json"
 
 
 def load_metrics(report_path: Path) -> dict | None:
@@ -64,6 +66,21 @@ def classify_address(api_url: str, address: str, max_wait: int = 60) -> dict:
         resp.raise_for_status()
         result = resp.json()
     return result
+
+
+def detect_transaction(api_url: str, payload: dict) -> dict:
+    resp = requests.post(f"{api_url}/detect/transaction", json=payload, timeout=10)
+    resp.raise_for_status()
+    return resp.json()
+
+
+def _render_anomaly_result(result: dict) -> None:
+    score = result.get("score", 0.0)
+    if result.get("anomaly"):
+        st.error("Anomaly detected")
+    else:
+        st.success("Normal transaction")
+    st.metric("Anomaly Score", f"{score:.4f}", help="Distance to nearest normal cluster. Higher = more unusual.")
 
 
 def _render_prediction(result: dict) -> None:
@@ -178,6 +195,7 @@ def main() -> None:
             ("gas_v1_url", "Gas Price v1", _DEFAULT_GAS_V1_URL),
             ("gas_v2_url", "Gas Price v2 (LSTM)", _DEFAULT_GAS_V2_URL),
             ("addr_url", "Address Classifier", _DEFAULT_ADDR_URL),
+            ("txanomaly_url", "Transaction Anomaly", _DEFAULT_TXANOMALY_URL),
         ]:
             if key not in st.session_state:
                 st.session_state[key] = default
@@ -210,8 +228,16 @@ def main() -> None:
             if "f1_phishing" in addr_metrics:
                 st.metric("F1 Phishing", f"{addr_metrics['f1_phishing']:.4f}")
 
-    tab1, tab2, tab3, tab4 = st.tabs([
-        "Gas Price: Live", "Gas Price: Manual", "Gas Price v2 (LSTM)", "Address Classifier",
+        txanomaly_metrics = load_metrics(TXANOMALY_REPORT_PATH)
+        if txanomaly_metrics:
+            st.caption("Transaction Anomaly")
+            st.metric("Anomaly Ratio", f"{txanomaly_metrics['anomaly_ratio']:.4f}")
+            st.metric("Clusters Found", str(txanomaly_metrics['n_clusters']))
+            st.metric("Noise Points", str(txanomaly_metrics['n_noise']))
+
+    tab1, tab2, tab3, tab4, tab5 = st.tabs([
+        "Gas Price: Live", "Gas Price: Manual", "Gas Price v2 (LSTM)",
+        "Address Classifier", "Transaction Anomaly",
     ])
 
     with tab1:
@@ -331,6 +357,55 @@ def main() -> None:
                             st.error(f"Error: {result.get('error', 'Unknown error')}")
                     except Exception as e:
                         _handle_request_errors(e, status)
+
+
+    with tab5:
+        st.header("Transaction Anomaly Detector")
+        st.write("Check whether a transaction looks unusual before submitting it.")
+
+        col1, col2 = st.columns(2)
+        with col1:
+            value_eth = st.number_input("Value (ETH)", min_value=0.0, value=0.5, step=0.1,
+                                         help="Transaction value in ETH")
+            gas_price_gwei = st.number_input("Gas Price (Gwei)", min_value=0.0, value=20.0, step=1.0)
+            gas_used = st.number_input("Gas Used", min_value=0.0, value=21000.0, step=1000.0)
+            is_contract_call = st.selectbox("Contract Call?", options=[0.0, 1.0],
+                                             format_func=lambda x: "Yes" if x == 1.0 else "No")
+            input_data_len = st.number_input("Calldata Length (bytes)", min_value=0.0, value=0.0, step=4.0,
+                                              help="0 = simple ETH transfer")
+        with col2:
+            hour_of_day = st.slider("Hour of Day (UTC)", min_value=0.0, max_value=23.0, value=14.0, step=1.0)
+            sender_tx_count_window = st.number_input("Sender Tx Count (window)", min_value=1.0, value=5.0, step=1.0)
+            sender_avg_value_eth = st.number_input("Sender Avg Value ETH (window)", min_value=0.0, value=0.5, step=0.1)
+            receiver_tx_count_window = st.number_input("Receiver Tx Count (window)", min_value=1.0, value=3.0, step=1.0)
+
+        if st.button("Check Transaction", key="btn_anomaly"):
+            payload = {
+                "value_eth": value_eth,
+                "gas_price_gwei": gas_price_gwei,
+                "gas_used": gas_used,
+                "input_data_len": input_data_len,
+                "is_contract_call": is_contract_call,
+                "hour_of_day": hour_of_day,
+                "sender_tx_count_window": sender_tx_count_window,
+                "sender_avg_value_eth": sender_avg_value_eth,
+                "receiver_tx_count_window": receiver_tx_count_window,
+            }
+            with st.spinner("Checking transaction..."):
+                try:
+                    result = detect_transaction(st.session_state.txanomaly_url, payload)
+                    _render_anomaly_result(result)
+                except requests.ConnectionError:
+                    st.error("Could not connect to the Transaction Anomaly API. Is the backend running?")
+                except requests.Timeout:
+                    st.error("The request timed out. Please try again.")
+                except requests.HTTPError as e:
+                    code = e.response.status_code if e.response else "?"
+                    detail = e.response.json().get("detail", str(e)) if e.response else str(e)
+                    st.error(f"**HTTP {code}:** {detail}")
+                except Exception as e:
+                    with st.expander("Error details"):
+                        st.exception(e)
 
 
 if __name__ == "__main__":
