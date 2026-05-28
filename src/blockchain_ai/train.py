@@ -19,6 +19,21 @@ def train_model(
         from blockchain_ai.tune import run_hpo
         train_config = run_hpo(input_path, train_config, n_trials=cfg.hpo.n_trials)
 
+    if cfg.task == "clustering":
+        if train_config.model_type == "dbscan":
+            from blockchain_ai.model.dbscan_wrapper import DBSCANWrapper
+            model = DBSCANWrapper(**train_config.hyperparameters)
+        else:
+            raise ValueError(
+                f"Unknown model_type: {train_config.model_type!r}. Supported: 'dbscan'"
+            )
+        df = pd.read_csv(input_path)
+        X = df[cfg.ingest.feature_cols].values
+        model.fit(X)
+        Path(model_path).parent.mkdir(parents=True, exist_ok=True)
+        joblib.dump(model, model_path)
+        return model
+
     df = pd.read_csv(input_path)
     X = df.drop(columns=[train_config.target_col])
     y = df[train_config.target_col]

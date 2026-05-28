@@ -1,7 +1,9 @@
+import numpy as np
 import pandas as pd
 import pytest
 import joblib
-from blockchain_ai.config import IngestConfig, PipelineConfig, TrainConfig
+from blockchain_ai.config import IngestConfig, PathsConfig, PipelineConfig, ServeConfig, TrainConfig
+from blockchain_ai.model.dbscan_wrapper import DBSCANWrapper
 from blockchain_ai.train import train_model
 
 
@@ -140,3 +142,29 @@ def test_train_model_lstm_saves_model_and_has_predict(tmp_path):
     loaded = joblib.load(model_path)
     assert hasattr(loaded, "predict")
     assert hasattr(loaded, "sequence_length")
+
+
+def test_train_clustering_returns_dbscan_wrapper(tmp_path):
+    from blockchain_ai.config import (
+        PipelineConfig, IngestConfig, TrainConfig, PathsConfig, ServeConfig
+    )
+    cfg = PipelineConfig(
+        task="clustering",
+        ingest=IngestConfig(feature_cols=["x", "y"], fill_zero_cols=[], target_col=""),
+        train=TrainConfig(target_col="", model_type="dbscan", test_size=0.0,
+                          hyperparameters={"eps": 0.5, "min_samples": 3}),
+        paths=PathsConfig(processed_path=str(tmp_path / "p.csv"),
+                          report_path=str(tmp_path / "r.json")),
+        serve=ServeConfig(model_path=str(tmp_path / "model.joblib")),
+    )
+    df = pd.DataFrame({"x": np.random.randn(50), "y": np.random.randn(50)})
+    df.to_csv(tmp_path / "p.csv", index=False)
+
+    model = train_model(
+        str(tmp_path / "p.csv"),
+        str(tmp_path / "model.joblib"),
+        "",
+        cfg,
+    )
+    assert isinstance(model, DBSCANWrapper)
+    assert (tmp_path / "model.joblib").exists()
