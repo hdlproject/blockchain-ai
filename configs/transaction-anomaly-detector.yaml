@@ -1,0 +1,90 @@
+task: clustering
+
+etherscan:
+  base_url: https://api.etherscan.io/v2/api
+  chain_id: 1
+  rate_limit_per_sec: 5
+  timeout_sec: 30
+
+collect:
+  n_blocks: 500
+  output_path: data/raw/transactions.csv
+
+ingest:
+  feature_cols:
+    - value_eth
+    - gas_price_gwei
+    - gas_used
+    - input_data_len
+    - is_contract_call
+    - hour_of_day
+    - sender_tx_count_window
+    - sender_avg_value_eth
+    - receiver_tx_count_window
+  fill_zero_cols: []
+  target_col: ""
+
+train:
+  target_col: ""
+  model_type: dbscan
+  test_size: 0.0
+  hyperparameters:
+    eps: 0.5
+    min_samples: 5
+
+paths:
+  processed_path: data/processed/transactions.csv
+  report_path: reports/transaction_anomaly.json
+
+serve:
+  title: Ethereum Transaction Anomaly Detector
+  description: Detects unusual Ethereum transactions using DBSCAN clustering.
+  model_path: models/transaction_anomaly_detector.joblib
+  fields:
+    value_eth:
+      type: float
+      description: Transaction value in ETH
+      example: 0.5
+      ge: 0.0
+    gas_price_gwei:
+      type: float
+      description: Gas price in Gwei
+      example: 20.0
+      ge: 0.0
+    gas_used:
+      type: float
+      description: Gas consumed
+      example: 21000.0
+      ge: 0.0
+    input_data_len:
+      type: float
+      description: Calldata byte length (0 = simple ETH transfer)
+      example: 0.0
+      ge: 0.0
+    is_contract_call:
+      type: float
+      description: 1 if contract call, 0 if simple transfer
+      example: 0.0
+      ge: 0.0
+      le: 1.0
+    hour_of_day:
+      type: float
+      description: UTC hour of block timestamp (0-23)
+      example: 14.0
+      ge: 0.0
+      le: 23.0
+    sender_tx_count_window:
+      type: float
+      description: Sender transaction count in recent window
+      example: 5.0
+      ge: 1.0
+    sender_avg_value_eth:
+      type: float
+      description: Sender average transaction value in ETH in recent window
+      example: 0.5
+      ge: 0.0
+    receiver_tx_count_window:
+      type: float
+      description: Receiver transaction count in recent window
+      example: 3.0
+      ge: 1.0

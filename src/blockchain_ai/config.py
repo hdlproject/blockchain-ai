@@ -61,8 +61,8 @@ class EtherscanConfig:
 @dataclass
 class PathsConfig:
     processed_path: str
-    test_path: str
     report_path: str
+    test_path: str = ""
 
 
 @dataclass
@@ -129,17 +129,19 @@ def load_config(path: str) -> PipelineConfig:
         raise ValueError("Config missing required key: 'train'")
 
     task = raw.get("task", "regression")
-    if task not in ("regression", "classification"):
-        raise ValueError(f"Config 'task' must be 'regression' or 'classification', got: {task!r}")
+    if task not in ("regression", "classification", "clustering"):
+        raise ValueError(f"Config 'task' must be 'regression', 'classification', or 'clustering', got: {task!r}")
 
     i = raw["ingest"]
     t = raw["train"]
 
-    for key in ("feature_cols", "fill_zero_cols", "target_col"):
+    required_ingest = ["feature_cols", "fill_zero_cols"] if task == "clustering" else ["feature_cols", "fill_zero_cols", "target_col"]
+    for key in required_ingest:
         if key not in i:
             raise ValueError(f"Config ingest section missing required key: '{key}'")
 
-    for key in ("target_col", "model_type", "test_size", "hyperparameters"):
+    required_train = ["model_type", "hyperparameters"] if task == "clustering" else ["target_col", "model_type", "test_size", "hyperparameters"]
+    for key in required_train:
         if key not in t:
             raise ValueError(f"Config train section missing required key: '{key}'")
 
@@ -177,7 +179,7 @@ def load_config(path: str) -> PipelineConfig:
                     for name, meta in s["fields"].items()
                 },
             )
-        else:
+        elif task == "classification":
             for key in ("model_path", "confidence_threshold", "db_path"):
                 if key not in s:
                     raise ValueError(f"Config serve section missing required key: '{key}'")
@@ -187,6 +189,27 @@ def load_config(path: str) -> PipelineConfig:
                 description=s["description"].strip() if s.get("description") else None,
                 confidence_threshold=float(s["confidence_threshold"]),
                 db_path=s["db_path"],
+            )
+        else:  # clustering
+            for key in ("model_path", "title", "description", "fields"):
+                if key not in s:
+                    raise ValueError(f"Config serve section missing required key: '{key}'")
+            serve_cfg = ServeConfig(
+                model_path=s["model_path"],
+                title=s["title"],
+                description=s["description"].strip(),
+                fields={
+                    name: FieldConfig(
+                        type=meta["type"],
+                        description=meta["description"].strip(),
+                        example=meta["example"],
+                        ge=meta.get("ge"),
+                        gt=meta.get("gt"),
+                        le=meta.get("le"),
+                        lt=meta.get("lt"),
+                    )
+                    for name, meta in (s.get("fields") or {}).items()
+                },
             )
 
     etherscan_cfg = None
@@ -205,12 +228,15 @@ def load_config(path: str) -> PipelineConfig:
     paths_cfg = None
     if "paths" in raw:
         p = raw["paths"]
-        for key in ("processed_path", "test_path", "report_path"):
+        required_paths = ["processed_path", "report_path"]
+        if task != "clustering":
+            required_paths.append("test_path")
+        for key in required_paths:
             if key not in p:
                 raise ValueError(f"Config paths section missing required key: '{key}'")
         paths_cfg = PathsConfig(
             processed_path=p["processed_path"],
-            test_path=p["test_path"],
+            test_path=p.get("test_path", ""),
             report_path=p["report_path"],
         )
 
@@ -277,13 +303,12 @@ def load_config(path: str) -> PipelineConfig:
         ingest=IngestConfig(
             feature_cols=i["feature_cols"],
             fill_zero_cols=i["fill_zero_cols"],
-            target_col=i["target_col"],
+            target_col=i.get("target_col", ""),
         ),
         train=TrainConfig(
-            target_col=t["target_col"],
+            target_col=t.get("target_col", ""),
             model_type=t["model_type"],
-
-            test_size=t["test_size"],
+            test_size=float(t.get("test_size", 0.0)),
             hyperparameters=t["hyperparameters"],
         ),
         hpo=hpo_cfg,

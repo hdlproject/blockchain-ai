@@ -351,3 +351,74 @@ def test_serve_classification_missing_db_path_raises(tmp_path):
     path = _write_yaml(tmp_path, yaml)
     with pytest.raises(ValueError, match="db_path"):
         load_config(path)
+
+
+def test_load_clustering_config(tmp_path):
+    yaml_content = """
+task: clustering
+etherscan:
+  base_url: https://api.etherscan.io/v2/api
+  chain_id: 1
+  rate_limit_per_sec: 5
+  timeout_sec: 30
+collect:
+  n_blocks: 100
+  output_path: data/raw/transactions.csv
+ingest:
+  feature_cols: [value_eth, gas_price_gwei]
+  fill_zero_cols: []
+  target_col: ""
+train:
+  target_col: ""
+  model_type: dbscan
+  test_size: 0.0
+  hyperparameters:
+    eps: 0.5
+    min_samples: 5
+paths:
+  processed_path: data/processed/transactions.csv
+  report_path: reports/transaction_anomaly.json
+serve:
+  title: Test
+  description: Test
+  model_path: models/test.joblib
+  fields:
+    value_eth:
+      type: float
+      description: value
+      example: 0.5
+"""
+    config_path = tmp_path / "test.yaml"
+    config_path.write_text(yaml_content)
+    cfg = load_config(str(config_path))
+    assert cfg.task == "clustering"
+    assert cfg.train.model_type == "dbscan"
+    assert cfg.paths.test_path == ""
+
+def test_clustering_config_paths_test_path_optional(tmp_path):
+    yaml_content = """
+task: clustering
+ingest:
+  feature_cols: [value_eth]
+  fill_zero_cols: []
+  target_col: ""
+train:
+  target_col: ""
+  model_type: dbscan
+  test_size: 0.0
+  hyperparameters:
+    eps: 0.5
+    min_samples: 5
+paths:
+  processed_path: data/processed/transactions.csv
+  report_path: reports/transaction_anomaly.json
+serve:
+  title: Test
+  description: Test
+  model_path: models/test.joblib
+  fields: {}
+"""
+    config_path = tmp_path / "test.yaml"
+    config_path.write_text(yaml_content)
+    cfg = load_config(str(config_path))
+    assert cfg.paths.test_path == ""
