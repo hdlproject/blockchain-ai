@@ -4,8 +4,9 @@ import numpy as np
 import pandas as pd
 import pytest
 from xgboost import XGBRegressor, XGBClassifier
-from blockchain_ai.config import IngestConfig, PipelineConfig, ServeConfig, TrainConfig
+from blockchain_ai.config import IngestConfig, PathsConfig, PipelineConfig, ServeConfig, TrainConfig
 from blockchain_ai.evaluate import evaluate_model, pre_evaluate_model, post_evaluate_model
+from blockchain_ai.model.dbscan_wrapper import DBSCANWrapper
 
 
 def _regression_cfg(target_col: str, log_transform: bool = True) -> PipelineConfig:
@@ -142,3 +143,38 @@ def test_evaluate_classification_accuracy_is_float(tmp_path):
     report = json.loads((tmp_path / "r.json").read_text())
     assert isinstance(report["accuracy"], float)
     assert 0.0 <= report["accuracy"] <= 1.0
+
+
+def test_evaluate_clustering(tmp_path):
+    from blockchain_ai.config import (
+        PipelineConfig, IngestConfig, TrainConfig, PathsConfig, ServeConfig
+    )
+    cfg = PipelineConfig(
+        task="clustering",
+        ingest=IngestConfig(feature_cols=["x", "y"], fill_zero_cols=[], target_col=""),
+        train=TrainConfig(target_col="", model_type="dbscan", test_size=0.0,
+                          hyperparameters={"eps": 0.5, "min_samples": 3}),
+        paths=PathsConfig(processed_path=str(tmp_path / "p.csv"),
+                          report_path=str(tmp_path / "r.json")),
+        serve=ServeConfig(model_path=str(tmp_path / "model.joblib")),
+    )
+    rng = np.random.default_rng(42)
+    X = rng.normal(size=(100, 2)).astype(np.float32)
+    model = DBSCANWrapper(eps=0.5, min_samples=3)
+    model.fit(X)
+    joblib.dump(model, tmp_path / "model.joblib")
+
+    df = pd.DataFrame(X, columns=["x", "y"])
+    df.to_csv(tmp_path / "p.csv", index=False)
+
+    report = evaluate_model(
+        str(tmp_path / "p.csv"),
+        str(tmp_path / "model.joblib"),
+        str(tmp_path / "r.json"),
+        cfg,
+    )
+    assert "anomaly_ratio" in report
+    assert "n_clusters" in report
+    assert "n_noise" in report
+    assert 0.0 <= report["anomaly_ratio"] <= 1.0
+    assert (tmp_path / "r.json").exists()

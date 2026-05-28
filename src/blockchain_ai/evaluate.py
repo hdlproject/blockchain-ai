@@ -55,6 +55,22 @@ def evaluate_model(
         report_path: str,
         cfg: PipelineConfig,
 ) -> dict:
+    if cfg.task == "clustering":
+        df = pd.read_csv(test_path)
+        X = df[cfg.ingest.feature_cols].values
+        model = joblib.load(model_path)
+        labels = model.predict(X)
+        n_noise = int(np.sum(labels == -1))
+        n_clusters = int(len(set(labels.tolist())) - (1 if -1 in labels else 0))
+        report = {
+            "anomaly_ratio": round(float(n_noise / len(labels)), 4),
+            "n_clusters": n_clusters,
+            "n_noise": n_noise,
+        }
+        Path(report_path).parent.mkdir(parents=True, exist_ok=True)
+        Path(report_path).write_text(json.dumps(report, indent=2))
+        return report
+
     X, y = pre_evaluate_model(test_path, cfg)
     y_raw = joblib.load(model_path).predict(X)
     report = post_evaluate_model(y, y_raw, cfg)
