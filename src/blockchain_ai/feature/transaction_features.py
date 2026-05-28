@@ -1,8 +1,13 @@
 from datetime import datetime, timezone
 import pandas as pd
 
+from blockchain_ai.feature.feature_extractor import FeatureExtractor
 
-class TransactionFeatureExtractor:
+
+class TransactionFeatureExtractor(FeatureExtractor):
+    def extract(self, raw_txs: list[dict]) -> pd.DataFrame:
+        return self.extract_dataset(raw_txs)
+
     def extract_dataset(self, raw_txs: list[dict]) -> pd.DataFrame:
         sender_counts: dict[str, int] = {}
         sender_values: dict[str, list[float]] = {}
