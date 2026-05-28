@@ -79,6 +79,10 @@ elif model is not None and task == "classification":
     _feature_extractor = AddressFeatureExtractor(_etherscan_client) if _etherscan_client else None
     app.include_router(create_router(_job_store, model, _feature_extractor, feature_cols, serve.confidence_threshold))
 
+elif model is not None and task == "clustering":
+    from blockchain_ai.server.router_anomaly import create_router as create_anomaly_router
+    app.include_router(create_anomaly_router(serve, feature_cols, model))
+
 _CONFIG_V2_PATH = os.environ.get("CONFIG_V2")
 if _CONFIG_V2_PATH:
     _cfg_v2 = load_config(_CONFIG_V2_PATH)
