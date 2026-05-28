@@ -28,7 +28,7 @@ class DBSCANWrapper:
 
     def anomaly_score(self, X: np.ndarray) -> np.ndarray:
         if self._nn is None or self._scaler is None:
-            raise RuntimeError("Call fit() before predict().")
+            raise RuntimeError("Call fit() before using the model.")
         X_scaled = self._scaler.transform(np.asarray(X, dtype=np.float32))
         distances, _ = self._nn.kneighbors(X_scaled)
         return distances[:, 0]
