@@ -154,3 +154,39 @@ def test_get_token_transfers_returns_empty_on_no_transfers(client):
         mock_get.return_value = _error_response("No transactions found")
         result = client.get_token_transfers("0xempty")
     assert result == []
+
+
+def _make_client():
+    with patch.dict("os.environ", {"ETHERSCAN_API_KEY": "testkey"}):
+        return EtherscanClient("https://api.etherscan.io/v2/api", 1, 5, 30)
+
+
+def test_get_block_with_txs_returns_list():
+    client = _make_client()
+    mock_result = {
+        "timestamp": "0x65000000",
+        "transactions": [
+            {
+                "from": "0xaaa",
+                "to": "0xbbb",
+                "value": "0xde0b6b3a7640000",
+                "gas": "0x5208",
+                "gasPrice": "0x4a817c800",
+                "input": "0x",
+            }
+        ],
+    }
+    with patch.object(client, "_get", return_value=mock_result):
+        rows = client.get_block_with_txs(12345)
+    assert rows is not None
+    assert len(rows) == 1
+    assert rows[0]["from"] == "0xaaa"
+    assert rows[0]["value"] == "1000000000000000000"
+    assert rows[0]["timeStamp"] == "1694498816"
+
+
+def test_get_block_with_txs_returns_none_on_missing_result():
+    client = _make_client()
+    with patch.object(client, "_get", return_value=None):
+        rows = client.get_block_with_txs(12345)
+    assert rows is None

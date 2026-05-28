@@ -92,3 +92,31 @@ class EtherscanClient:
             "gas_used_ratio": gas_used / gas_limit if gas_limit > 0 else 0.0,
             "timestamp": int(result["timestamp"], 16),
         }
+
+    def get_block_with_txs(self, block_number: int) -> list[dict] | None:
+        result = self._get({
+            "module": "proxy",
+            "action": "eth_getBlockByNumber",
+            "tag": hex(block_number),
+            "boolean": "true",
+        })
+        if result is None:
+            return None
+        timestamp = int(result.get("timestamp", "0x0"), 16)
+        txs = result.get("transactions", [])
+        if not isinstance(txs, list):
+            return None
+        rows = []
+        for tx in txs:
+            if not isinstance(tx, dict):
+                continue
+            rows.append({
+                "from": tx.get("from", ""),
+                "to": tx.get("to", "") or "",
+                "value": str(int(tx.get("value", "0x0"), 16)),
+                "gas": str(int(tx.get("gas", "0x0"), 16)),
+                "gasPrice": str(int(tx.get("gasPrice", "0x0"), 16)),
+                "input": tx.get("input", "0x"),
+                "timeStamp": str(timestamp),
+            })
+        return rows
