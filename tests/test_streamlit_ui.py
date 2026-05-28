@@ -42,7 +42,7 @@ def test_predict_latest_calls_correct_endpoint():
     with patch("ui.streamlit_app.requests.get", return_value=mock_resp) as mock_get:
         result = predict_latest("http://localhost:8000")
     mock_get.assert_called_once_with(
-        "http://localhost:8000/predict/latest", params={"n_blocks": 1}, timeout=60
+        "http://localhost:8000/predict/gas-price/latest", params={"n_blocks": 1}, timeout=60
     )
     assert result["block_number"] == 12345678
     assert result["predictions"][0]["base_fee_gwei"] == 15.5
@@ -64,7 +64,7 @@ def test_predict_latest_passes_n_blocks():
     with patch("ui.streamlit_app.requests.get", return_value=mock_resp) as mock_get:
         result = predict_latest("http://localhost:8000", n_blocks=5)
     mock_get.assert_called_once_with(
-        "http://localhost:8000/predict/latest", params={"n_blocks": 5}, timeout=60
+        "http://localhost:8000/predict/gas-price/latest", params={"n_blocks": 5}, timeout=60
     )
     assert len(result["predictions"]) == 5
 
@@ -86,6 +86,6 @@ def test_predict_manual_calls_correct_endpoint():
     with patch("ui.streamlit_app.requests.post", return_value=mock_resp) as mock_post:
         result = predict_manual("http://localhost:8000", payload)
     mock_post.assert_called_once_with(
-        "http://localhost:8000/predict", json=payload, timeout=10
+        "http://localhost:8000/predict/gas-price", json=payload, timeout=10
     )
     assert result["predicted_predicted_next-block_base_fee_gwei"] == 16.0

@@ -13,7 +13,7 @@ def _mock_model(probas):
 def test_predict_address_returns_highest_label():
     result = predict_address(
         features={"tx_count": 10.0, "account_age_days": 30.0},
-        model=_mock_model([0.05, 0.85, 0.10]),
+        model=_mock_model([0.05, 0.10, 0.85]),
         feature_cols=["tx_count", "account_age_days"],
         threshold=0.5,
     )
