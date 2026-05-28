@@ -156,13 +156,7 @@ def test_get_token_transfers_returns_empty_on_no_transfers(client):
     assert result == []
 
 
-def _make_client():
-    with patch.dict("os.environ", {"ETHERSCAN_API_KEY": "testkey"}):
-        return EtherscanClient("https://api.etherscan.io/v2/api", 1, 5, 30)
-
-
-def test_get_block_with_txs_returns_list():
-    client = _make_client()
+def test_get_block_with_txs_returns_list(client):
     mock_result = {
         "timestamp": "0x65000000",
         "transactions": [
@@ -185,8 +179,7 @@ def test_get_block_with_txs_returns_list():
     assert rows[0]["timeStamp"] == "1694498816"
 
 
-def test_get_block_with_txs_returns_none_on_missing_result():
-    client = _make_client()
+def test_get_block_with_txs_returns_none_on_missing_result(client):
     with patch.object(client, "_get", return_value=None):
         rows = client.get_block_with_txs(12345)
     assert rows is None
