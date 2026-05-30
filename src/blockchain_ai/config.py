@@ -194,7 +194,7 @@ def load_config(path: str) -> PipelineConfig:
                 confidence_threshold=float(s["confidence_threshold"]),
                 db_path=s["db_path"],
             )
-        else:  # clustering
+        elif task == "clustering":
             for key in ("model_path", "title", "description", "fields"):
                 if key not in s:
                     raise ValueError(f"Config serve section missing required key: '{key}'")
@@ -204,6 +204,8 @@ def load_config(path: str) -> PipelineConfig:
                 description=s["description"].strip(),
                 fields=_parse_fields(s["fields"]),
             )
+        else:
+            raise ValueError(f"Unknown task: {task!r}")
 
     etherscan_cfg = None
     if "etherscan" in raw:
