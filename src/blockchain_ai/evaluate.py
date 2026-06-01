@@ -62,10 +62,24 @@ def evaluate_model(
         labels = model.predict(X)
         n_noise = int(np.sum(labels == -1))
         n_clusters = int(len(set(labels.tolist())) - (1 if -1 in labels else 0))
+
+        # k-distance percentiles to guide eps tuning
+        from sklearn.neighbors import NearestNeighbors
+        X_scaled = model._scaler.transform(X)
+        k = model.min_samples
+        nn = NearestNeighbors(n_neighbors=k).fit(X_scaled)
+        k_distances = np.sort(nn.kneighbors(X_scaled)[0][:, -1])
+        percentiles = {
+            f"k_dist_p{p}": round(float(np.percentile(k_distances, p)), 4)
+            for p in (50, 75, 90, 95, 99)
+        }
+
         report = {
             "anomaly_ratio": round(float(n_noise / len(labels)), 4),
             "n_clusters": n_clusters,
             "n_noise": n_noise,
+            "current_eps": model.eps,
+            **percentiles,
         }
         Path(report_path).parent.mkdir(parents=True, exist_ok=True)
         Path(report_path).write_text(json.dumps(report, indent=2))
