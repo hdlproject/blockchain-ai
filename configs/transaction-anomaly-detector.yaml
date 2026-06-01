@@ -7,20 +7,21 @@ etherscan:
   timeout_sec: 30
 
 collect:
-  n_blocks: 500
+  days: 7
+  txs_per_hour: 50
   output_path: data/raw/transactions.csv
 
 ingest:
   feature_cols:
-    - value_eth
     - gas_price_gwei
     - gas_used
     - input_data_len
-    - is_contract_call
     - hour_of_day
     - sender_tx_count_window
-    - sender_avg_value_eth
     - receiver_tx_count_window
+    - tx_type
+    - contract_type
+    - log_transfer_value
   fill_zero_cols: []
   target_col: ""
 
@@ -41,11 +42,6 @@ serve:
   description: Detects unusual Ethereum transactions using DBSCAN clustering.
   model_path: models/transaction_anomaly_detector.joblib
   fields:
-    value_eth:
-      type: float
-      description: Transaction value in ETH
-      example: 0.5
-      ge: 0.0
     gas_price_gwei:
       type: float
       description: Gas price in Gwei
@@ -61,12 +57,6 @@ serve:
       description: Calldata byte length (0 = simple ETH transfer)
       example: 0.0
       ge: 0.0
-    is_contract_call:
-      type: float
-      description: 1 if contract call, 0 if simple transfer
-      example: 0.0
-      ge: 0.0
-      le: 1.0
     hour_of_day:
       type: float
       description: UTC hour of block timestamp (0-23)
@@ -78,13 +68,25 @@ serve:
       description: Sender transaction count in recent window
       example: 5.0
       ge: 1.0
-    sender_avg_value_eth:
-      type: float
-      description: Sender average transaction value in ETH in recent window
-      example: 0.5
-      ge: 0.0
     receiver_tx_count_window:
       type: float
       description: Receiver transaction count in recent window
       example: 3.0
       ge: 1.0
+    tx_type:
+      type: float
+      description: "0=ETH transfer, 1=token transfer/transferFrom, 2=approve, 3=other"
+      example: 1.0
+      ge: 0.0
+      le: 3.0
+    contract_type:
+      type: float
+      description: "0=ETH transfer, 1=known token contract, 2=unknown/other contract"
+      example: 1.0
+      ge: 0.0
+      le: 2.0
+    log_transfer_value:
+      type: float
+      description: "log(1 + transfer value in ETH or normalized token amount)"
+      example: 0.693
+      ge: 0.0

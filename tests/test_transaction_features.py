@@ -1,6 +1,7 @@
+import math
 import pandas as pd
 import pytest
-from blockchain_ai.feature.transaction_features import TransactionFeatureExtractor
+from blockchain_ai.feature.transaction_features import TransactionFeatureExtractor, KNOWN_TOKEN_DECIMALS
 
 
 def _make_tx(frm="0xaaa", to="0xbbb", value_wei="1000000000000000000",
@@ -26,29 +27,37 @@ def test_extract_dataset_has_expected_columns():
     extractor = TransactionFeatureExtractor()
     df = extractor.extract_dataset(txs)
     expected = {
-        "value_eth", "gas_price_gwei", "gas_used", "input_data_len",
-        "is_contract_call", "hour_of_day", "sender_tx_count_window",
-        "sender_avg_value_eth", "receiver_tx_count_window",
+        "gas_price_gwei", "gas_used", "input_data_len",
+        "hour_of_day", "sender_tx_count_window", "receiver_tx_count_window",
+        "tx_type", "contract_type", "log_transfer_value",
     }
     assert expected.issubset(set(df.columns))
 
 
-def test_value_eth_conversion():
-    txs = [_make_tx(value_wei="2000000000000000000")]
+def test_log_transfer_value_zero_for_no_calldata_no_eth():
+    txs = [_make_tx(value_wei="0", input_data="0x")]
     df = TransactionFeatureExtractor().extract_dataset(txs)
-    assert abs(df["value_eth"].iloc[0] - 2.0) < 1e-6
+    assert df["log_transfer_value"].iloc[0] == 0.0
 
 
-def test_is_contract_call_with_calldata():
-    txs = [_make_tx(input_data="0xabcdef")]
-    df = TransactionFeatureExtractor().extract_dataset(txs)
-    assert df["is_contract_call"].iloc[0] == 1.0
-
-
-def test_is_contract_call_simple_transfer():
+def test_contract_type_eth_transfer():
     txs = [_make_tx(input_data="0x")]
     df = TransactionFeatureExtractor().extract_dataset(txs)
-    assert df["is_contract_call"].iloc[0] == 0.0
+    assert df["contract_type"].iloc[0] == 0.0
+
+
+def test_contract_type_known_token():
+    usdc = "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48"
+    txs = [_make_tx(to=usdc, input_data="0xabcdef")]
+    df = TransactionFeatureExtractor().extract_dataset(txs)
+    assert df["contract_type"].iloc[0] == 1.0
+
+
+def test_contract_type_unknown_contract():
+    unknown = "0x1234567890abcdef1234567890abcdef12345678"
+    txs = [_make_tx(to=unknown, input_data="0xabcdef")]
+    df = TransactionFeatureExtractor().extract_dataset(txs)
+    assert df["contract_type"].iloc[0] == 2.0
 
 
 def test_sender_tx_count_window():
@@ -70,3 +79,61 @@ def test_input_data_len():
     txs = [_make_tx(input_data="0xabcd")]
     df = TransactionFeatureExtractor().extract_dataset(txs)
     assert df["input_data_len"].iloc[0] == 2.0
+
+
+def test_tx_type_eth_transfer():
+    txs = [_make_tx(input_data="0x")]
+    df = TransactionFeatureExtractor().extract_dataset(txs)
+    assert df["tx_type"].iloc[0] == 0.0
+
+
+def test_tx_type_token_transfer():
+    # transfer(address,uint256) selector + 64 bytes to + 64 bytes amount
+    selector = "a9059cbb"
+    calldata = "0x" + selector + "0" * 128
+    txs = [_make_tx(input_data=calldata)]
+    df = TransactionFeatureExtractor().extract_dataset(txs)
+    assert df["tx_type"].iloc[0] == 1.0
+
+
+def test_tx_type_approve():
+    selector = "095ea7b3"
+    calldata = "0x" + selector + "0" * 128
+    txs = [_make_tx(input_data=calldata)]
+    df = TransactionFeatureExtractor().extract_dataset(txs)
+    assert df["tx_type"].iloc[0] == 2.0
+
+
+def test_tx_type_other():
+    txs = [_make_tx(input_data="0xdeadbeef")]
+    df = TransactionFeatureExtractor().extract_dataset(txs)
+    assert df["tx_type"].iloc[0] == 3.0
+
+
+
+
+def test_log_transfer_value_eth():
+    txs = [_make_tx(value_wei="1000000000000000000", input_data="0x")]  # 1 ETH
+    df = TransactionFeatureExtractor().extract_dataset(txs)
+    assert abs(df["log_transfer_value"].iloc[0] - math.log1p(1.0)) < 1e-5
+
+
+def test_log_transfer_value_known_token():
+    usdc = "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48"  # 6 decimals
+    # transfer(address,uint256): 100 USDC = 100 * 10^6 = 100_000_000
+    amount = 100_000_000
+    selector = "a9059cbb"
+    calldata = "0x" + selector + "0" * 64 + hex(amount)[2:].zfill(64)
+    txs = [_make_tx(to=usdc, value_wei="0", input_data=calldata)]
+    df = TransactionFeatureExtractor().extract_dataset(txs)
+    expected = math.log1p(100.0)  # 100 USDC normalized
+    assert abs(df["log_transfer_value"].iloc[0] - expected) < 1e-4
+
+
+def test_log_transfer_value_unknown_token_is_zero():
+    unknown = "0x1234567890abcdef1234567890abcdef12345678"
+    selector = "a9059cbb"
+    calldata = "0x" + selector + "0" * 128
+    txs = [_make_tx(to=unknown, value_wei="0", input_data=calldata)]
+    df = TransactionFeatureExtractor().extract_dataset(txs)
+    assert df["log_transfer_value"].iloc[0] == 0.0

@@ -93,6 +93,15 @@ class EtherscanClient:
             "timestamp": int(result["timestamp"], 16),
         }
 
+    def get_block_number_by_timestamp(self, timestamp: int, closest: str = "before") -> int:
+        result = self._get({
+            "module": "block",
+            "action": "getblocknobytime",
+            "timestamp": timestamp,
+            "closest": closest,
+        })
+        return int(result)
+
     def get_block_with_txs(self, block_number: int) -> list[dict] | None:
         result = self._get({
             "module": "proxy",

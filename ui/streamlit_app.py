@@ -365,31 +365,42 @@ def main() -> None:
 
         col1, col2 = st.columns(2)
         with col1:
-            value_eth = st.number_input("Value (ETH)", min_value=0.0, value=0.5, step=0.1,
-                                         help="Transaction value in ETH")
             gas_price_gwei = st.number_input("Gas Price (Gwei)", min_value=0.0, value=20.0, step=1.0)
             gas_used = st.number_input("Gas Used", min_value=0.0, value=21000.0, step=1000.0)
-            is_contract_call = st.selectbox("Contract Call?", options=[0.0, 1.0],
-                                             format_func=lambda x: "Yes" if x == 1.0 else "No")
+            tx_type = st.selectbox(
+                "Transaction Type",
+                options=[0.0, 1.0, 2.0, 3.0],
+                format_func=lambda x: {0.0: "ETH Transfer", 1.0: "Token Transfer", 2.0: "Approve", 3.0: "Other"}[x],
+            )
+            contract_type = st.selectbox(
+                "Contract Type",
+                options=[0.0, 1.0, 2.0],
+                format_func=lambda x: {0.0: "ETH Transfer", 1.0: "Known Token (USDC/USDT/WETH/…)", 2.0: "Unknown Contract"}[x],
+            )
+            transfer_value_raw = st.number_input(
+                "Transfer Value (ETH or token amount)",
+                min_value=0.0, value=0.0, step=0.1,
+                help="ETH amount for ETH transfers; normalized token amount (e.g. 100 USDC) for token transfers",
+            )
+        with col2:
             input_data_len = st.number_input("Calldata Length (bytes)", min_value=0.0, value=0.0, step=4.0,
                                               help="0 = simple ETH transfer")
-        with col2:
             hour_of_day = st.slider("Hour of Day (UTC)", min_value=0.0, max_value=23.0, value=14.0, step=1.0)
             sender_tx_count_window = st.number_input("Sender Tx Count (window)", min_value=1.0, value=5.0, step=1.0)
-            sender_avg_value_eth = st.number_input("Sender Avg Value ETH (window)", min_value=0.0, value=0.5, step=0.1)
             receiver_tx_count_window = st.number_input("Receiver Tx Count (window)", min_value=1.0, value=3.0, step=1.0)
 
         if st.button("Check Transaction", key="btn_anomaly"):
+            import math as _math
             payload = {
-                "value_eth": value_eth,
                 "gas_price_gwei": gas_price_gwei,
                 "gas_used": gas_used,
                 "input_data_len": input_data_len,
-                "is_contract_call": is_contract_call,
                 "hour_of_day": hour_of_day,
                 "sender_tx_count_window": sender_tx_count_window,
-                "sender_avg_value_eth": sender_avg_value_eth,
                 "receiver_tx_count_window": receiver_tx_count_window,
+                "tx_type": tx_type,
+                "contract_type": contract_type,
+                "log_transfer_value": round(_math.log1p(transfer_value_raw), 6),
             }
             with st.spinner("Checking transaction..."):
                 try:

@@ -183,3 +183,20 @@ def test_get_block_with_txs_returns_none_on_missing_result(client):
     with patch.object(client, "_get", return_value=None):
         rows = client.get_block_with_txs(12345)
     assert rows is None
+
+
+def test_get_block_number_by_timestamp(client):
+    with patch("blockchain_ai.connector.etherscan.requests.get") as mock_get:
+        mock_get.return_value = _ok_response("12345678")
+        result = client.get_block_number_by_timestamp(1700000000)
+    assert result == 12345678
+
+
+def test_get_block_number_by_timestamp_passes_closest(client):
+    with patch("blockchain_ai.connector.etherscan.requests.get") as mock_get:
+        mock_get.return_value = _ok_response("12345678")
+        client.get_block_number_by_timestamp(1700000000, closest="after")
+    call_params = mock_get.call_args[1]["params"]
+    assert call_params["action"] == "getblocknobytime"
+    assert call_params["closest"] == "after"
+    assert call_params["timestamp"] == 1700000000

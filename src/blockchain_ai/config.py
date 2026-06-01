@@ -67,10 +67,12 @@ class PathsConfig:
 
 @dataclass
 class CollectConfig:
-    n_blocks: int
     output_path: str
+    days: int = 7
+    txs_per_hour: int = 50
+    n_blocks: int = 0  # kept for gas-price pipeline scripts
     checkpoint_every: int = 100
-    max_history_blocks: int = 50_000  # ~7 days of Ethereum blocks
+    max_history_blocks: int = 50_000
 
 
 @dataclass
@@ -238,12 +240,13 @@ def load_config(path: str) -> PipelineConfig:
     collect_cfg = None
     if "collect" in raw:
         c = raw["collect"]
-        for key in ("n_blocks", "output_path"):
-            if key not in c:
-                raise ValueError(f"Config collect section missing required key: '{key}'")
+        if "output_path" not in c:
+            raise ValueError("Config collect section missing required key: 'output_path'")
         collect_cfg = CollectConfig(
-            n_blocks=int(c["n_blocks"]),
             output_path=c["output_path"],
+            days=int(c.get("days", 7)),
+            txs_per_hour=int(c.get("txs_per_hour", 50)),
+            n_blocks=int(c.get("n_blocks", 0)),
             checkpoint_every=int(c.get("checkpoint_every", 100)),
             max_history_blocks=int(c.get("max_history_blocks", 50_000)),
         )

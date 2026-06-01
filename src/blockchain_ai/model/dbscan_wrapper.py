@@ -1,20 +1,20 @@
 import numpy as np
 from sklearn.cluster import DBSCAN
 from sklearn.neighbors import NearestNeighbors
-from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import RobustScaler
 
 
 class DBSCANWrapper:
     def __init__(self, eps: float = 0.5, min_samples: int = 5):
         self.eps = eps
         self.min_samples = min_samples
-        self._scaler: StandardScaler | None = None
+        self._scaler: RobustScaler | None = None
         self._core_samples: np.ndarray | None = None
         self._nn: NearestNeighbors | None = None
 
     def fit(self, X: np.ndarray) -> "DBSCANWrapper":
         X = np.asarray(X, dtype=np.float32)
-        self._scaler = StandardScaler()
+        self._scaler = RobustScaler()
         X_scaled = self._scaler.fit_transform(X)
         db = DBSCAN(eps=self.eps, min_samples=self.min_samples)
         db.fit(X_scaled)
