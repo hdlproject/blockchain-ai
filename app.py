@@ -29,7 +29,7 @@ task = _cfg.task
 serve: ServeConfig = _cfg.serve
 feature_cols: list[str] = _cfg.ingest.feature_cols
 
-app = FastAPI(title=serve.title, description=serve.description, version="0.1.0")
+app = FastAPI(title=serve.title or "Blockchain AI", description=serve.description or "", version="0.1.0")
 
 def _load_model(raw_path: str, label: str = "model") -> object | None:
     try:
@@ -82,6 +82,32 @@ elif model is not None and task == "classification":
 elif model is not None and task == "clustering":
     from blockchain_ai.server.router_anomaly import create_router as create_anomaly_router
     app.include_router(create_anomaly_router(serve, feature_cols, model))
+
+elif task == "airdrop_farmer":
+    from datetime import datetime, timezone
+    from blockchain_ai.feature.airdrop_features import AirdropFeatureExtractor
+    from blockchain_ai.database.job_store import JobStore
+    from blockchain_ai.server.router_airdrop_farmer import create_router as create_airdrop_router
+
+    if _cfg.airdrop is None:
+        raise RuntimeError("Config task=airdrop_farmer requires an 'airdrop' section.")
+
+    _airdrop_date = datetime.fromisoformat(_cfg.airdrop.date).replace(tzinfo=timezone.utc)
+    _funding_set = model.funding_address_set if model is not None else set()
+    _feature_extractor = (
+        AirdropFeatureExtractor(
+            _etherscan_client,
+            _cfg.airdrop.contract_address,
+            _airdrop_date,
+            _funding_set,
+        )
+        if _etherscan_client is not None
+        else None
+    )
+    _job_store = JobStore(serve.db_path)
+    app.include_router(
+        create_airdrop_router(_job_store, model, _feature_extractor, feature_cols)
+    )
 
 _CONFIG_V2_PATH = os.environ.get("CONFIG_V2")
 if _CONFIG_V2_PATH:
