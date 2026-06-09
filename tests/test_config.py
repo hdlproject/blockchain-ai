@@ -423,3 +423,71 @@ serve:
     config_path.write_text(yaml_content)
     cfg = load_config(str(config_path))
     assert cfg.paths.test_path == ""
+
+
+def test_airdrop_farmer_config_parsed(tmp_path):
+    yaml_content = """
+task: airdrop_farmer
+
+airdrop:
+  contract_address: "0xABC"
+  date: "2024-01-15"
+
+etherscan:
+  base_url: https://api.etherscan.io/v2/api
+  chain_id: 1
+  rate_limit_per_sec: 5
+  timeout_sec: 30
+
+ingest:
+  feature_cols:
+    - wallet_age_days
+  fill_zero_cols: []
+
+train:
+  model_type: gmm
+  hyperparameters:
+    n_components: 4
+
+serve:
+  model_path: models/gmm.joblib
+  db_path: data/jobs.db
+"""
+    p = tmp_path / "cfg.yaml"
+    p.write_text(yaml_content)
+    cfg = load_config(str(p))
+    assert cfg.task == "airdrop_farmer"
+    assert cfg.airdrop is not None
+    assert cfg.airdrop.contract_address == "0xABC"
+    assert cfg.airdrop.date == "2024-01-15"
+    assert cfg.serve.db_path == "data/jobs.db"
+
+
+def test_airdrop_farmer_missing_airdrop_section_raises(tmp_path):
+    yaml_content = """
+task: airdrop_farmer
+
+etherscan:
+  base_url: https://api.etherscan.io/v2/api
+  chain_id: 1
+  rate_limit_per_sec: 5
+  timeout_sec: 30
+
+ingest:
+  feature_cols:
+    - wallet_age_days
+  fill_zero_cols: []
+
+train:
+  model_type: gmm
+  hyperparameters:
+    n_components: 4
+
+serve:
+  model_path: models/gmm.joblib
+  db_path: data/jobs.db
+"""
+    p = tmp_path / "cfg.yaml"
+    p.write_text(yaml_content)
+    with pytest.raises(ValueError, match="airdrop"):
+        load_config(str(p))

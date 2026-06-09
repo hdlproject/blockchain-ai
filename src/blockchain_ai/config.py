@@ -102,6 +102,12 @@ class MEWConfig:
 
 
 @dataclass
+class AirdropConfig:
+    contract_address: str
+    date: str  # ISO format e.g. "2024-01-15"
+
+
+@dataclass
 class PipelineConfig:
     ingest: IngestConfig
     train: TrainConfig
@@ -115,6 +121,7 @@ class PipelineConfig:
     ofac: "OFACConfig | None" = None
     scamsniffer: "ScamSnifferConfig | None" = None
     mew: "MEWConfig | None" = None
+    airdrop: "AirdropConfig | None" = None
 
 
 def _parse_fields(fields_raw: dict) -> dict[str, FieldConfig]:
@@ -146,18 +153,18 @@ def load_config(path: str) -> PipelineConfig:
         raise ValueError("Config missing required key: 'train'")
 
     task = raw.get("task", "regression")
-    if task not in ("regression", "classification", "clustering"):
-        raise ValueError(f"Config 'task' must be 'regression', 'classification', or 'clustering', got: {task!r}")
+    if task not in ("regression", "classification", "clustering", "airdrop_farmer"):
+        raise ValueError(f"Config 'task' must be 'regression', 'classification', 'clustering', or 'airdrop_farmer', got: {task!r}")
 
     i = raw["ingest"]
     t = raw["train"]
 
-    required_ingest = ["feature_cols", "fill_zero_cols"] if task == "clustering" else ["feature_cols", "fill_zero_cols", "target_col"]
+    required_ingest = ["feature_cols", "fill_zero_cols"] if task in ("clustering", "airdrop_farmer") else ["feature_cols", "fill_zero_cols", "target_col"]
     for key in required_ingest:
         if key not in i:
             raise ValueError(f"Config ingest section missing required key: '{key}'")
 
-    required_train = ["model_type", "hyperparameters"] if task == "clustering" else ["target_col", "model_type", "test_size", "hyperparameters"]
+    required_train = ["model_type", "hyperparameters"] if task in ("clustering", "airdrop_farmer") else ["target_col", "model_type", "test_size", "hyperparameters"]
     for key in required_train:
         if key not in t:
             raise ValueError(f"Config train section missing required key: '{key}'")
@@ -205,6 +212,14 @@ def load_config(path: str) -> PipelineConfig:
                 title=s["title"],
                 description=s["description"].strip(),
                 fields=_parse_fields(s["fields"]),
+            )
+        elif task == "airdrop_farmer":
+            for key in ("model_path", "db_path"):
+                if key not in s:
+                    raise ValueError(f"Config serve section missing required key: '{key}'")
+            serve_cfg = ServeConfig(
+                model_path=s["model_path"],
+                db_path=s["db_path"],
             )
         else:
             raise ValueError(f"Unknown task: {task!r}")
@@ -296,6 +311,20 @@ def load_config(path: str) -> PipelineConfig:
                 raise ValueError(f"Config mew section missing required key: '{key}'")
         mew_cfg = MEWConfig(url=m["url"], timeout_sec=int(m["timeout_sec"]))
 
+    airdrop_cfg = None
+    if "airdrop" in raw:
+        a = raw["airdrop"]
+        for key in ("contract_address", "date"):
+            if key not in a:
+                raise ValueError(f"Config airdrop section missing required key: '{key}'")
+        airdrop_cfg = AirdropConfig(
+            contract_address=a["contract_address"],
+            date=a["date"],
+        )
+
+    if task == "airdrop_farmer" and airdrop_cfg is None:
+        raise ValueError("Config task=airdrop_farmer requires an 'airdrop' section")
+
     return PipelineConfig(
         task=task,
         ingest=IngestConfig(
@@ -318,4 +347,5 @@ def load_config(path: str) -> PipelineConfig:
         ofac=ofac_cfg,
         scamsniffer=scamsniffer_cfg,
         mew=mew_cfg,
+        airdrop=airdrop_cfg,
     )
