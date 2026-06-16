@@ -5,8 +5,8 @@ from blockchain_ai.database.job_store import JobStore
 from blockchain_ai.server.router_airdrop_farmer import create_router
 
 _FEATURE_COLS = [
-    "wallet_age_days", "tx_count_pre_airdrop", "token_type_diversity",
-    "claim_to_withdraw_hours", "gas_source_shared",
+    "wallet_age_days", "tx_count_before_first_inflow", "token_type_diversity",
+    "inflow_to_outflow_hours", "shared_funder_score",
     "inter_tx_time_variance", "unique_counterparty_count",
 ]
 
@@ -15,10 +15,10 @@ _RESULT = {
     "priority_tier": "deprioritize",
     "bic_scores": [{"k": k, "bic": float(1000 - k * 10)} for k in range(2, 9)],
     "wallet_age_days": 5.0,
-    "tx_count_pre_airdrop": 0.0,
+    "tx_count_before_first_inflow": 0.0,
     "token_type_diversity": 1.0,
-    "claim_to_withdraw_hours": 0.5,
-    "gas_source_shared": 1.0,
+    "inflow_to_outflow_hours": 0.5,
+    "shared_funder_score": 1.1,
     "inter_tx_time_variance": 100.0,
     "unique_counterparty_count": 2.0,
 }
