@@ -103,8 +103,7 @@ class MEWConfig:
 
 @dataclass
 class AirdropConfig:
-    contract_address: str
-    date: str  # ISO format e.g. "2024-01-15"
+    contract_addresses: list[str]
 
 
 @dataclass
@@ -314,12 +313,10 @@ def load_config(path: str) -> PipelineConfig:
     airdrop_cfg = None
     if "airdrop" in raw:
         a = raw["airdrop"]
-        for key in ("contract_address", "date"):
-            if key not in a:
-                raise ValueError(f"Config airdrop section missing required key: '{key}'")
+        if "contract_addresses" not in a:
+            raise ValueError("Config airdrop section missing required key: 'contract_addresses'")
         airdrop_cfg = AirdropConfig(
-            contract_address=a["contract_address"],
-            date=a["date"],
+            contract_addresses=list(a["contract_addresses"]),
         )
 
     if task == "airdrop_farmer" and airdrop_cfg is None:

@@ -430,8 +430,9 @@ def test_airdrop_farmer_config_parsed(tmp_path):
 task: airdrop_farmer
 
 airdrop:
-  contract_address: "0xABC"
-  date: "2024-01-15"
+  contract_addresses:
+    - "0xABC"
+    - "0xDEF"
 
 etherscan:
   base_url: https://api.etherscan.io/v2/api
@@ -458,8 +459,7 @@ serve:
     cfg = load_config(str(p))
     assert cfg.task == "airdrop_farmer"
     assert cfg.airdrop is not None
-    assert cfg.airdrop.contract_address == "0xABC"
-    assert cfg.airdrop.date == "2024-01-15"
+    assert cfg.airdrop.contract_addresses == ["0xABC", "0xDEF"]
     assert cfg.serve.db_path == "data/jobs.db"
 
 
