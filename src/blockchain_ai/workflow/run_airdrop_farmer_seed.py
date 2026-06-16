@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Fetch all wallets that called the airdrop contract, compute features,
-fit the GMM model, and save artifacts.
+Fetch all wallets that called any of the configured airdrop contracts,
+compute features, fit the GMM model, and save artifacts.
 
 Usage:
     python src/blockchain_ai/workflow/run_airdrop_farmer_seed.py \
@@ -14,7 +14,6 @@ Output:
 import argparse
 import csv
 import sys
-from datetime import datetime, timezone
 from pathlib import Path
 
 import joblib
@@ -27,7 +26,8 @@ load_dotenv()
 
 from blockchain_ai.config import load_config
 from blockchain_ai.connector.etherscan import EtherscanClient
-from blockchain_ai.feature.airdrop_features import compute_airdrop_features
+from blockchain_ai.database.funder_ledger import FunderLedger
+from blockchain_ai.feature.airdrop_features import compute_airdrop_features, derive_funder
 from blockchain_ai.model.gmm_wrapper import GMMWrapper
 
 
@@ -43,80 +43,63 @@ def main() -> None:
         raise RuntimeError("Config missing 'airdrop' section")
 
     client = EtherscanClient.from_config(cfg.etherscan)
-    contract_address = cfg.airdrop.contract_address
-    airdrop_date = datetime.fromisoformat(cfg.airdrop.date).replace(tzinfo=timezone.utc)
+    contract_addresses = cfg.airdrop.contract_addresses
     feature_cols = cfg.ingest.feature_cols
     fill_zero_cols = set(cfg.ingest.fill_zero_cols)
     hp = cfg.train.hyperparameters
+    ledger = FunderLedger(cfg.serve.db_path)
 
-    print(f"Fetching transactions for contract {contract_address} ...")
-    contract_txs = client.get_tx_list(contract_address)
-    caller_addresses = list({
-        tx["from"].lower()
-        for tx in contract_txs
-        if tx.get("to", "").lower() == contract_address.lower()
-    })
-    print(f"Found {len(caller_addresses)} unique caller addresses.")
+    caller_addresses: set[str] = set()
+    for contract_address in contract_addresses:
+        print(f"Fetching transactions for contract {contract_address} ...")
+        contract_txs = client.get_tx_list(contract_address)
+        caller_addresses |= {
+            tx["from"].lower()
+            for tx in contract_txs
+            if tx.get("to", "").lower() == contract_address.lower()
+        }
+    caller_list = list(caller_addresses)
+    print(f"Found {len(caller_list)} unique caller addresses across {len(contract_addresses)} contract(s).")
 
-    if len(caller_addresses) < 10:
+    if len(caller_list) < 10:
         raise RuntimeError(
-            f"Only {len(caller_addresses)} callers found. "
-            "Check AIRDROP_CONTRACT_ADDRESS in the config."
+            f"Only {len(caller_list)} callers found. "
+            "Check contract_addresses in the config."
         )
 
-    # Pass 1: collect features (gas_source_shared=0) and store per-wallet funder
-    rows: list[dict] = []
-    wallet_funder: dict[str, str] = {}  # address → funding wallet address
+    # Pass 1: fetch tx data per wallet and record funders into the ledger.
+    wallet_data: dict[str, tuple[list, list]] = {}
     failed = 0
 
-    for i, address in enumerate(caller_addresses):
-        print(f"  [{i + 1}/{len(caller_addresses)}] {address}")
+    for i, address in enumerate(caller_list):
+        print(f"  [{i + 1}/{len(caller_list)}] {address}")
         try:
             txs = client.get_tx_list(address)
             token_txs = client.get_token_transfers(address)
-            features = compute_airdrop_features(
-                address, txs, token_txs, contract_address, airdrop_date, set()
-            )
-            # Store the funding address for pass 2
-            inbound_with_value = [
-                tx for tx in txs
-                if tx.get("to", "").lower() == address and int(tx.get("value", "0")) > 0
-            ]
-            if inbound_with_value:
-                earliest = min(inbound_with_value, key=lambda t: int(t["timeStamp"]))
-                funder = earliest.get("from", "").lower()
-                if funder:
-                    wallet_funder[address] = funder
-
-            for col in fill_zero_cols:
-                if features.get(col) is None or features[col] != features[col]:
-                    features[col] = 0.0
-
-            rows.append({"address": address, **features})
+            wallet_data[address] = (txs, token_txs)
+            funder = derive_funder(address, txs)
+            if funder:
+                ledger.record(funder, address)
         except Exception as exc:
             print(f"    WARNING: Failed for {address}: {exc}")
             failed += 1
 
-    if failed > len(caller_addresses) * 0.5:
-        raise RuntimeError(f"Too many failures ({failed}/{len(caller_addresses)}). Aborting.")
+    if failed > len(caller_list) * 0.5:
+        raise RuntimeError(f"Too many failures ({failed}/{len(caller_list)}). Aborting.")
 
-    print(f"\nSuccessfully collected {len(rows)} wallets ({failed} failed).")
+    print(f"\nSuccessfully collected {len(wallet_data)} wallets ({failed} failed).")
 
-    # Pass 2: compute gas_source_shared using the full funder→wallet map.
-    # A funder is "shared" if it funded ≥2 wallets in the dataset.
-    funder_count: dict[str, int] = {}
-    for funder in wallet_funder.values():
-        funder_count[funder] = funder_count.get(funder, 0) + 1
-    shared_funders = {funder for funder, count in funder_count.items() if count >= 2}
-    all_funding_addresses = set(wallet_funder.values())
-
-    print(f"Unique funding addresses: {len(all_funding_addresses)}")
-    print(f"Shared funding addresses (funded ≥2 wallets): {len(shared_funders)}")
-
-    for row in rows:
-        addr = row["address"]
-        funder = wallet_funder.get(addr)
-        row["gas_source_shared"] = 1.0 if (funder and funder in shared_funders) else 0.0
+    # Pass 2: compute features now that the ledger has every wallet's funder recorded.
+    rows: list[dict] = []
+    for address, (txs, token_txs) in wallet_data.items():
+        features = compute_airdrop_features(
+            address, txs, token_txs,
+            lambda funder, addr=address: ledger.funded_count(funder, addr),
+        )
+        for col in fill_zero_cols:
+            if features.get(col) is None or features[col] != features[col]:
+                features[col] = 0.0
+        rows.append({"address": address, **features})
 
     # Fit the model
     X = np.array([[row[col] for col in feature_cols] for row in rows], dtype=float)
@@ -126,7 +109,7 @@ def main() -> None:
         covariance_type=hp.get("covariance_type", "full"),
         random_state=int(hp.get("random_state", 42)),
     )
-    wrapper.fit(X, feature_cols, funding_address_set=all_funding_addresses)
+    wrapper.fit(X, feature_cols)
 
     print("\nBIC scores:")
     for entry in wrapper.bic_scores:
