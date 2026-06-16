@@ -293,11 +293,12 @@ Replace the entire contents of `tests/test_airdrop_features.py` with:
 
 ```python
 import math
+from datetime import datetime, timezone
 from unittest.mock import MagicMock
 from blockchain_ai.feature.airdrop_features import compute_airdrop_features, derive_funder, AirdropFeatureExtractor
 
 _ADDR = "0xwallet000000000000000000000000000000001"
-_BASE_TS = 1_700_000_000  # 2023-11-14
+_BASE_TS = int(datetime.now(timezone.utc).timestamp())
 
 # wallet that received a token and immediately dumped it — sybil pattern
 _TXS_SYBIL = [
