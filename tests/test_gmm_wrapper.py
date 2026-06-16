@@ -4,10 +4,10 @@ from blockchain_ai.model.gmm_wrapper import GMMWrapper
 
 _FEATURE_COLS = [
     "wallet_age_days",
-    "tx_count_pre_airdrop",
+    "tx_count_before_first_inflow",
     "token_type_diversity",
-    "claim_to_withdraw_hours",
-    "gas_source_shared",
+    "inflow_to_outflow_hours",
+    "shared_funder_score",
     "inter_tx_time_variance",
     "unique_counterparty_count",
 ]
@@ -49,9 +49,9 @@ def test_farmer_score_in_unit_interval():
     wrapper = GMMWrapper()
     wrapper.fit(_synthetic_data(), _FEATURE_COLS)
     genuine_features = {
-        "wallet_age_days": 400.0, "tx_count_pre_airdrop": 60.0,
-        "token_type_diversity": 12.0, "claim_to_withdraw_hours": 800.0,
-        "gas_source_shared": 0.0, "inter_tx_time_variance": 60000.0,
+        "wallet_age_days": 400.0, "tx_count_before_first_inflow": 60.0,
+        "token_type_diversity": 12.0, "inflow_to_outflow_hours": 800.0,
+        "shared_funder_score": 0.0, "inter_tx_time_variance": 60000.0,
         "unique_counterparty_count": 35.0,
     }
     score = wrapper.score_wallet(genuine_features, _FEATURE_COLS)
@@ -62,15 +62,15 @@ def test_heavy_farmer_scores_higher_than_genuine():
     wrapper = GMMWrapper()
     wrapper.fit(_synthetic_data(), _FEATURE_COLS)
     farmer_features = {
-        "wallet_age_days": 5.0, "tx_count_pre_airdrop": 0.0,
-        "token_type_diversity": 1.0, "claim_to_withdraw_hours": 0.2,
-        "gas_source_shared": 1.0, "inter_tx_time_variance": 50.0,
+        "wallet_age_days": 5.0, "tx_count_before_first_inflow": 0.0,
+        "token_type_diversity": 1.0, "inflow_to_outflow_hours": 0.2,
+        "shared_funder_score": 2.0, "inter_tx_time_variance": 50.0,
         "unique_counterparty_count": 1.0,
     }
     genuine_features = {
-        "wallet_age_days": 400.0, "tx_count_pre_airdrop": 60.0,
-        "token_type_diversity": 12.0, "claim_to_withdraw_hours": 800.0,
-        "gas_source_shared": 0.0, "inter_tx_time_variance": 60000.0,
+        "wallet_age_days": 400.0, "tx_count_before_first_inflow": 60.0,
+        "token_type_diversity": 12.0, "inflow_to_outflow_hours": 800.0,
+        "shared_funder_score": 0.0, "inter_tx_time_variance": 60000.0,
         "unique_counterparty_count": 35.0,
     }
     farmer_score = wrapper.score_wallet(farmer_features, _FEATURE_COLS)["farmer_score"]
@@ -105,13 +105,6 @@ def test_score_wallet_result_contains_bic_scores():
     result = wrapper.score_wallet(features, _FEATURE_COLS)
     assert "bic_scores" in result
     assert len(result["bic_scores"]) == 7
-
-
-def test_funding_address_set_stored_on_fit():
-    wrapper = GMMWrapper()
-    wrapper.fit(_synthetic_data(), _FEATURE_COLS, funding_address_set={"0xABC", "0xDEF"})
-    assert "0xabc" in wrapper.funding_address_set
-    assert "0xdef" in wrapper.funding_address_set
 
 
 def test_farmer_score_before_fit_raises():

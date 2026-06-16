@@ -13,14 +13,8 @@ class GMMWrapper:
         self._feature_cols: list[str] = []
         self._farmer_cluster_indices: list[int] = []
         self._bic_scores: list[dict] = []
-        self.funding_address_set: set[str] = set()
 
-    def fit(
-        self,
-        X: np.ndarray,
-        feature_cols: list[str],
-        funding_address_set: set[str] | None = None,
-    ) -> "GMMWrapper":
+    def fit(self, X: np.ndarray, feature_cols: list[str]) -> "GMMWrapper":
         X = np.asarray(X, dtype=float)
         self._feature_cols = feature_cols
         self._scaler = StandardScaler()
@@ -33,8 +27,6 @@ class GMMWrapper:
         )
         self._gmm.fit(X_scaled)
         self._farmer_cluster_indices = self._identify_farmer_clusters()
-        if funding_address_set:
-            self.funding_address_set = {a.lower() for a in funding_address_set}
         return self
 
     def _compute_bic(self, X_scaled: np.ndarray) -> list[dict]:
@@ -57,9 +49,9 @@ class GMMWrapper:
         normalized = (means - means.min(axis=0)) / feature_range
         farmer_signals = {
             "wallet_age_days": "low",
-            "tx_count_pre_airdrop": "low",
-            "claim_to_withdraw_hours": "low",
-            "gas_source_shared": "high",
+            "tx_count_before_first_inflow": "low",
+            "inflow_to_outflow_hours": "low",
+            "shared_funder_score": "high",
             "unique_counterparty_count": "low",
         }
         farmer_proxy = np.zeros(self.n_components)
