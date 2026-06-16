@@ -1,10 +1,12 @@
 # Airdrop Farmer Detector
-# Swap the three constants below for each new airdrop campaign.
+# Add as many known airdrop contracts as you have to build a richer training pool.
+# Serving (POST /airdrop-farmer/analyze/{address}) needs no contract address —
+# it scores any wallet generically.
 task: airdrop_farmer
 
 airdrop:
-  contract_address: "0x0000000000000000000000000000000000000000"  # AIRDROP_CONTRACT_ADDRESS
-  date: "2024-01-01"                                               # AIRDROP_DATE (ISO, UTC)
+  contract_addresses:
+    - "0x0000000000000000000000000000000000000000"
 
 etherscan:
   base_url: https://api.etherscan.io/v2/api
@@ -15,14 +17,14 @@ etherscan:
 ingest:
   feature_cols:
     - wallet_age_days
-    - tx_count_pre_airdrop
+    - tx_count_before_first_inflow
     - token_type_diversity
-    - claim_to_withdraw_hours
-    - gas_source_shared
+    - inflow_to_outflow_hours
+    - shared_funder_score
     - inter_tx_time_variance
     - unique_counterparty_count
   fill_zero_cols:
-    - claim_to_withdraw_hours
+    - inflow_to_outflow_hours
     - inter_tx_time_variance
 
 train:
