@@ -4,12 +4,12 @@ Fetch all wallets that called any of the configured airdrop contracts,
 compute features, fit the GMM model, and save artifacts.
 
 Usage:
-    python src/blockchain_ai/workflow/run_airdrop_farmer_seed.py \
-        --config configs/airdrop-farmer.yaml
+    python src/blockchain_ai/workflow/run_airdrop_farmer_detector_seed.py \
+        --config configs/airdrop-farmer-detector.yaml
 
 Output:
-    models/airdrop_farmer_gmm.joblib
-    data/airdrop_farmer/wallet_scores.csv
+    models/airdrop_farmer_detector_gmm.joblib
+    data/airdrop_farmer_detector/wallet_scores.csv
 """
 import argparse
 import csv
@@ -33,7 +33,7 @@ from blockchain_ai.model.gmm_wrapper import GMMWrapper
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Fit airdrop farmer GMM on seed wallets")
-    parser.add_argument("--config", default="configs/airdrop-farmer.yaml")
+    parser.add_argument("--config", default="configs/airdrop-farmer-detector.yaml")
     args = parser.parse_args()
 
     cfg = load_config(args.config)
@@ -122,7 +122,7 @@ def main() -> None:
     print(f"\nModel saved to {model_path}")
 
     # Score all seed wallets and write CSV
-    output_path = Path("data/airdrop_farmer/wallet_scores.csv")
+    output_path = Path("data/airdrop_farmer_detector/wallet_scores.csv")
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
     scored_rows = []

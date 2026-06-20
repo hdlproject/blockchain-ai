@@ -1,8 +1,8 @@
 # Airdrop Farmer Detector
 # Add as many known airdrop contracts as you have to build a richer training pool.
-# Serving (POST /airdrop-farmer/analyze/{address}) needs no contract address —
+# Serving (POST /airdrop-farmer-detector/analyze/{address}) needs no contract address —
 # it scores any wallet generically.
-task: airdrop_farmer
+task: airdrop_farmer_detector
 
 airdrop:
   contract_addresses:
@@ -35,5 +35,5 @@ train:
     random_state: 42
 
 serve:
-  model_path: models/airdrop_farmer_gmm.joblib
+  model_path: models/airdrop_farmer_detector_gmm.joblib
   db_path: data/jobs.db

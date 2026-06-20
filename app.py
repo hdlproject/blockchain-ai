@@ -83,14 +83,14 @@ elif model is not None and task == "clustering":
     from blockchain_ai.server.router_anomaly import create_router as create_anomaly_router
     app.include_router(create_anomaly_router(serve, feature_cols, model))
 
-elif task == "airdrop_farmer":
+elif task == "airdrop_farmer_detector":
     from blockchain_ai.feature.airdrop_features import AirdropFeatureExtractor
     from blockchain_ai.database.job_store import JobStore
     from blockchain_ai.database.funder_ledger import FunderLedger
-    from blockchain_ai.server.router_airdrop_farmer import create_router as create_airdrop_router
+    from blockchain_ai.server.router_airdrop_farmer_detector import create_router as create_airdrop_router
 
     if _cfg.airdrop is None:
-        raise RuntimeError("Config task=airdrop_farmer requires an 'airdrop' section.")
+        raise RuntimeError("Config task=airdrop_farmer_detector requires an 'airdrop' section.")
 
     _funder_ledger = FunderLedger(serve.db_path)
     _feature_extractor = (

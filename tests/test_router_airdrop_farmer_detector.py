@@ -2,7 +2,7 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from blockchain_ai.database.job_store import JobStore
-from blockchain_ai.server.router_airdrop_farmer import create_router
+from blockchain_ai.server.router_airdrop_farmer_detector import create_router
 
 _FEATURE_COLS = [
     "wallet_age_days", "tx_count_before_first_inflow", "token_type_diversity",
@@ -39,7 +39,7 @@ def _app(tmp_path, model=None, feature_extractor=None):
 
 def test_new_address_returns_202(tmp_path):
     app, _ = _app(tmp_path)
-    resp = TestClient(app).get("/airdrop-farmer/analyze/0xabc")
+    resp = TestClient(app).get("/airdrop-farmer-detector/analyze/0xabc")
     assert resp.status_code == 202
     assert resp.json()["status"] == "pending"
 
@@ -47,7 +47,7 @@ def test_new_address_returns_202(tmp_path):
 def test_pending_address_returns_202(tmp_path):
     app, store = _app(tmp_path)
     store.create_pending("0xabc")
-    resp = TestClient(app).get("/airdrop-farmer/analyze/0xabc")
+    resp = TestClient(app).get("/airdrop-farmer-detector/analyze/0xabc")
     assert resp.status_code == 202
 
 
@@ -55,7 +55,7 @@ def test_done_address_returns_200_with_result(tmp_path):
     app, store = _app(tmp_path)
     store.create_pending("0xdone")
     store.mark_done("0xdone", _RESULT)
-    resp = TestClient(app).get("/airdrop-farmer/analyze/0xdone")
+    resp = TestClient(app).get("/airdrop-farmer-detector/analyze/0xdone")
     assert resp.status_code == 200
     data = resp.json()
     assert data["status"] == "done"
@@ -68,7 +68,7 @@ def test_failed_address_returns_200_with_error(tmp_path):
     app, store = _app(tmp_path)
     store.create_pending("0xfail")
     store.mark_failed("0xfail", "Etherscan timeout")
-    resp = TestClient(app).get("/airdrop-farmer/analyze/0xfail")
+    resp = TestClient(app).get("/airdrop-farmer-detector/analyze/0xfail")
     assert resp.status_code == 200
     data = resp.json()
     assert data["status"] == "failed"
@@ -77,6 +77,6 @@ def test_failed_address_returns_200_with_error(tmp_path):
 
 def test_address_normalized_to_lowercase(tmp_path):
     app, store = _app(tmp_path)
-    TestClient(app).get("/airdrop-farmer/analyze/0xABCDEF")
+    TestClient(app).get("/airdrop-farmer-detector/analyze/0xABCDEF")
     job = store.get("0xabcdef")
     assert job is not None

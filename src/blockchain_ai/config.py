@@ -152,18 +152,18 @@ def load_config(path: str) -> PipelineConfig:
         raise ValueError("Config missing required key: 'train'")
 
     task = raw.get("task", "regression")
-    if task not in ("regression", "classification", "clustering", "airdrop_farmer"):
-        raise ValueError(f"Config 'task' must be 'regression', 'classification', 'clustering', or 'airdrop_farmer', got: {task!r}")
+    if task not in ("regression", "classification", "clustering", "airdrop_farmer_detector"):
+        raise ValueError(f"Config 'task' must be 'regression', 'classification', 'clustering', or 'airdrop_farmer_detector', got: {task!r}")
 
     i = raw["ingest"]
     t = raw["train"]
 
-    required_ingest = ["feature_cols", "fill_zero_cols"] if task in ("clustering", "airdrop_farmer") else ["feature_cols", "fill_zero_cols", "target_col"]
+    required_ingest = ["feature_cols", "fill_zero_cols"] if task in ("clustering", "airdrop_farmer_detector") else ["feature_cols", "fill_zero_cols", "target_col"]
     for key in required_ingest:
         if key not in i:
             raise ValueError(f"Config ingest section missing required key: '{key}'")
 
-    required_train = ["model_type", "hyperparameters"] if task in ("clustering", "airdrop_farmer") else ["target_col", "model_type", "test_size", "hyperparameters"]
+    required_train = ["model_type", "hyperparameters"] if task in ("clustering", "airdrop_farmer_detector") else ["target_col", "model_type", "test_size", "hyperparameters"]
     for key in required_train:
         if key not in t:
             raise ValueError(f"Config train section missing required key: '{key}'")
@@ -212,7 +212,7 @@ def load_config(path: str) -> PipelineConfig:
                 description=s["description"].strip(),
                 fields=_parse_fields(s["fields"]),
             )
-        elif task == "airdrop_farmer":
+        elif task == "airdrop_farmer_detector":
             for key in ("model_path", "db_path"):
                 if key not in s:
                     raise ValueError(f"Config serve section missing required key: '{key}'")
@@ -319,8 +319,8 @@ def load_config(path: str) -> PipelineConfig:
             contract_addresses=list(a["contract_addresses"]),
         )
 
-    if task == "airdrop_farmer" and airdrop_cfg is None:
-        raise ValueError("Config task=airdrop_farmer requires an 'airdrop' section")
+    if task == "airdrop_farmer_detector" and airdrop_cfg is None:
+        raise ValueError("Config task=airdrop_farmer_detector requires an 'airdrop' section")
 
     return PipelineConfig(
         task=task,

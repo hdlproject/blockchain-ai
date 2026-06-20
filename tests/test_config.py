@@ -425,9 +425,9 @@ serve:
     assert cfg.paths.test_path == ""
 
 
-def test_airdrop_farmer_config_parsed(tmp_path):
+def test_airdrop_farmer_detector_config_parsed(tmp_path):
     yaml_content = """
-task: airdrop_farmer
+task: airdrop_farmer_detector
 
 airdrop:
   contract_addresses:
@@ -457,15 +457,15 @@ serve:
     p = tmp_path / "cfg.yaml"
     p.write_text(yaml_content)
     cfg = load_config(str(p))
-    assert cfg.task == "airdrop_farmer"
+    assert cfg.task == "airdrop_farmer_detector"
     assert cfg.airdrop is not None
     assert cfg.airdrop.contract_addresses == ["0xABC", "0xDEF"]
     assert cfg.serve.db_path == "data/jobs.db"
 
 
-def test_airdrop_farmer_missing_airdrop_section_raises(tmp_path):
+def test_airdrop_farmer_detector_missing_airdrop_section_raises(tmp_path):
     yaml_content = """
-task: airdrop_farmer
+task: airdrop_farmer_detector
 
 etherscan:
   base_url: https://api.etherscan.io/v2/api

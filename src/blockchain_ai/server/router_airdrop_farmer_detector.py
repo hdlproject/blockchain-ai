@@ -12,7 +12,7 @@ def create_router(
 ) -> APIRouter:
     router = APIRouter()
 
-    @router.get("/airdrop-farmer/analyze/{address}")
+    @router.get("/airdrop-farmer-detector/analyze/{address}")
     def analyze_address(address: str, background_tasks: BackgroundTasks):
         address = address.lower()
         job = job_store.get(address)
