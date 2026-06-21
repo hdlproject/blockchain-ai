@@ -34,7 +34,7 @@ ingest:
 train:
   model_type: gmm
   hyperparameters:
-    n_components: 4
+    n_components: 4  # ignored — best k is auto-selected from BIC loop (k=2..8)
     covariance_type: full
     random_state: 42
 

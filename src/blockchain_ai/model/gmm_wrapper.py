@@ -20,6 +20,7 @@ class GMMWrapper:
         self._scaler = StandardScaler()
         X_scaled = self._scaler.fit_transform(X)
         self._bic_scores = self._compute_bic(X_scaled)
+        self.n_components = min(self._bic_scores, key=lambda e: e["bic"])["k"]
         self._gmm = GaussianMixture(
             n_components=self.n_components,
             covariance_type=self.covariance_type,
