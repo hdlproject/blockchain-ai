@@ -45,6 +45,27 @@ def compute_airdrop_features(
     token_txs: list[dict],
     funder_count_lookup: Callable[[str], int],
 ) -> dict[str, float]:
+    """
+    Compute 7 event-agnostic features for airdrop farmer detection.
+
+    Feature               | Farmer signal | Rationale
+    ----------------------|---------------|----------------------------------------------------------
+    wallet_age_days       | low           | Farmers spin up fresh wallets per airdrop season.
+    tx_count_before_first | low           | Genuine users build on-chain history before receiving
+      _inflow             |               | tokens; sybil wallets are created and immediately used.
+    token_type_diversity  | low           | Farmers hold only the airdrop token; genuine users
+                          |               | accumulate tokens across many DeFi interactions.
+    inflow_to_outflow     | low           | Farmers dump the token within hours of receiving it
+      _hours              |               | (minimum flip time across all tokens received).
+    shared_funder_score   | high          | log1p(N other wallets funded by the same funder).
+                          |               | Sybil operators fund many puppet wallets from few
+                          |               | master wallets. Limitation: exchange hot-wallets also
+                          |               | score high — excluding known CEX addresses is deferred.
+    inter_tx_time_variance| —             | Low variance = bot-like regular timing. Informs the
+                          |               | GMM cluster shape but not the farmer-cluster heuristic.
+    unique_counterparty   | low           | Farmers touch only: funder, airdrop contract, exchange.
+      _count              |               | Genuine users interact with many addresses over time.
+    """
     address = address.lower()
     now_ts = datetime.now(timezone.utc).timestamp()
 
