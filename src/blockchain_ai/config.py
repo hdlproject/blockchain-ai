@@ -104,6 +104,7 @@ class MEWConfig:
 @dataclass
 class AirdropConfig:
     contract_addresses: list[str]
+    max_wallets: int | None = None  # cap total wallets processed; None = no limit
 
 
 @dataclass
@@ -317,6 +318,7 @@ def load_config(path: str) -> PipelineConfig:
             raise ValueError("Config airdrop section missing required key: 'contract_addresses'")
         airdrop_cfg = AirdropConfig(
             contract_addresses=list(a["contract_addresses"]),
+            max_wallets=int(a["max_wallets"]) if "max_wallets" in a else None,
         )
 
     if task == "airdrop_farmer_detector" and airdrop_cfg is None:

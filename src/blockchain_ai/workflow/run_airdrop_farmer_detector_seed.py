@@ -61,6 +61,10 @@ def main() -> None:
     caller_list = list(caller_addresses)
     print(f"Found {len(caller_list)} unique caller addresses across {len(contract_addresses)} contract(s).")
 
+    if cfg.airdrop.max_wallets is not None:
+        caller_list = caller_list[:cfg.airdrop.max_wallets]
+        print(f"Limiting to {len(caller_list)} wallets (max_wallets={cfg.airdrop.max_wallets}).")
+
     if len(caller_list) < 10:
         raise RuntimeError(
             f"Only {len(caller_list)} callers found. "
