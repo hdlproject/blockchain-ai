@@ -49,21 +49,22 @@ def main() -> None:
     hp = cfg.train.hyperparameters
     ledger = FunderLedger(cfg.serve.db_path)
 
+    max_per_contract = cfg.airdrop.max_wallets_per_contract
     caller_addresses: set[str] = set()
     for contract_address in contract_addresses:
         print(f"Fetching transactions for contract {contract_address} ...")
         contract_txs = client.get_tx_list(contract_address)
-        caller_addresses |= {
+        contract_callers = [
             tx["from"].lower()
             for tx in contract_txs
             if tx.get("to", "").lower() == contract_address.lower()
-        }
+        ]
+        if max_per_contract is not None:
+            contract_callers = contract_callers[:max_per_contract]
+            print(f"  Capped to {len(contract_callers)} wallets for this contract (max_wallets_per_contract={max_per_contract}).")
+        caller_addresses |= set(contract_callers)
     caller_list = list(caller_addresses)
     print(f"Found {len(caller_list)} unique caller addresses across {len(contract_addresses)} contract(s).")
-
-    if cfg.airdrop.max_wallets is not None:
-        caller_list = caller_list[:cfg.airdrop.max_wallets]
-        print(f"Limiting to {len(caller_list)} wallets (max_wallets={cfg.airdrop.max_wallets}).")
 
     if len(caller_list) < 10:
         raise RuntimeError(

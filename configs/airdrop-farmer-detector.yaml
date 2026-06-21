@@ -5,7 +5,7 @@
 task: airdrop_farmer_detector
 
 airdrop:
-  # max_wallets: 200  # uncomment to cap wallet count for faster local testing
+  max_wallets_per_contract: 200
   contract_addresses:
     - "0x090D4613473dEE047c3f2706764f49E0821D256e" # uniswap
     - "0x035bdAeaB85E47710C27EdA7FD754bA80aD4ad02" # eigenlayer
