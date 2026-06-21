@@ -19,10 +19,17 @@ echo "[1/2] Running seed step (fetch wallets, record funders, fit GMM)..."
 poetry run python src/blockchain_ai/workflow/run_airdrop_farmer_detector_seed.py \
   --config "${CONFIG}"
 
-echo "[2/2] Starting API server..."
-echo "      FastAPI → http://localhost:8000"
-echo "      Score any wallet: GET http://localhost:8000/airdrop-farmer-detector/analyze/{address}"
+echo "[2/2] Starting API + Streamlit UI..."
+echo "      FastAPI   → http://localhost:8000"
+echo "      Streamlit → http://localhost:8501"
 echo "      Press Ctrl+C to stop."
 echo ""
 
-CONFIG="${CONFIG}" poetry run uvicorn app:app --host 0.0.0.0 --port 8000
+trap 'kill ${API_PID} 2>/dev/null; exit 0' INT TERM
+
+CONFIG="${CONFIG}" poetry run uvicorn app:app --host 0.0.0.0 --port 8000 &
+API_PID=$!
+
+poetry run streamlit run ui/streamlit_app.py
+
+kill "${API_PID}" 2>/dev/null

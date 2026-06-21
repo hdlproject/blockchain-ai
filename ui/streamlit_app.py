@@ -1,4 +1,5 @@
 import json
+import math
 import os
 import time
 from pathlib import Path
@@ -17,7 +18,9 @@ _DEFAULT_GAS_V1_URL = os.environ.get("GAS_V1_API_URL", "http://localhost:8000")
 _DEFAULT_GAS_V2_URL = os.environ.get("GAS_V2_API_URL", "http://localhost:8000")
 _DEFAULT_ADDR_URL = os.environ.get("ADDR_API_URL", "http://localhost:8000")
 _DEFAULT_TXANOMALY_URL = os.environ.get("TXANOMALY_API_URL", "http://localhost:8000")
+_DEFAULT_AIRDROP_URL = os.environ.get("AIRDROP_API_URL", "http://localhost:8000")
 TXANOMALY_REPORT_PATH = Path(__file__).parent.parent / "reports" / "transaction_anomaly.json"
+AIRDROP_SCORES_PATH = Path(__file__).parent.parent / "data" / "airdrop_farmer_detector" / "wallet_scores.csv"
 
 
 def load_metrics(report_path: Path) -> dict | None:
@@ -66,6 +69,56 @@ def classify_address(api_url: str, address: str, max_wait: int = 60) -> dict:
         resp.raise_for_status()
         result = resp.json()
     return result
+
+
+def analyze_airdrop_farmer(api_url: str, address: str, max_wait: int = 60) -> dict:
+    resp = requests.get(f"{api_url}/airdrop-farmer-detector/analyze/{address}", timeout=10)
+    resp.raise_for_status()
+    result = resp.json()
+    deadline = time.time() + max_wait
+    while result["status"] == "pending" and time.time() < deadline:
+        time.sleep(2)
+        resp = requests.get(f"{api_url}/airdrop-farmer-detector/analyze/{address}", timeout=10)
+        resp.raise_for_status()
+        result = resp.json()
+    return result
+
+
+_AIRDROP_FEATURE_DISPLAY = {
+    "wallet_age_days":               ("Wallet Age (days)",              lambda v: f"{v:.1f}"),
+    "tx_count_before_first_inflow":  ("Txs Before First Token Inflow",  lambda v: f"{int(v)}"),
+    "token_type_diversity":          ("Distinct Tokens Held",           lambda v: f"{int(v)}"),
+    "inflow_to_outflow_hours":       ("Fastest Token Flip (hours)",     lambda v: f"{v:.2f}"),
+    "shared_funder_score":           ("Co-funded Wallets (same funder)",lambda v: f"{int(round(math.expm1(v)))}"),
+    "inter_tx_time_variance":        ("Tx Timing Variance (sec²)",      lambda v: f"{v:,.0f}"),
+    "unique_counterparty_count":     ("Unique Counterparties",          lambda v: f"{int(v)}"),
+}
+
+
+def _render_airdrop_result(result: dict, feature_cols: list[str]) -> None:
+    tier = result.get("priority_tier", "unknown")
+    score = result.get("farmer_score", 0.0)
+
+    tier_config = {
+        "normal": ("success", "Normal — likely genuine user"),
+        "watch": ("warning", "Watch — ambiguous, monitor this wallet"),
+        "deprioritize": ("error", "Deprioritize — likely airdrop farmer"),
+    }
+    render_fn, label = tier_config.get(tier, ("info", f"Unknown tier: {tier}"))
+    getattr(st, render_fn)(f"**{label}**")
+
+    col1, col2 = st.columns(2)
+    col1.metric("Farmer Score", f"{score:.4f}", help="Probability of belonging to a farmer cluster (0–1). Higher = more suspicious.")
+    col2.metric("Priority Tier", tier)
+
+    present_cols = [c for c in feature_cols if c in result]
+    if present_cols:
+        st.subheader("Features")
+        feat_col1, feat_col2 = st.columns(2)
+        for i, col in enumerate(present_cols):
+            label_str, fmt_fn = _AIRDROP_FEATURE_DISPLAY.get(col, (col.replace("_", " ").title(), lambda v: f"{v:.4f}"))
+            target_col = feat_col1 if i % 2 == 0 else feat_col2
+            target_col.metric(label_str, fmt_fn(result[col]))
 
 
 def detect_transaction(api_url: str, payload: dict) -> dict:
@@ -196,6 +249,7 @@ def main() -> None:
             ("gas_v2_url", "Gas Price v2 (LSTM)", _DEFAULT_GAS_V2_URL),
             ("addr_url", "Address Classifier", _DEFAULT_ADDR_URL),
             ("txanomaly_url", "Transaction Anomaly", _DEFAULT_TXANOMALY_URL),
+            ("airdrop_url", "Airdrop Farmer Detector", _DEFAULT_AIRDROP_URL),
         ]:
             if key not in st.session_state:
                 st.session_state[key] = default
@@ -235,9 +289,23 @@ def main() -> None:
             st.metric("Clusters Found", str(txanomaly_metrics['n_clusters']))
             st.metric("Noise Points", str(txanomaly_metrics['n_noise']))
 
-    tab1, tab2, tab3, tab4, tab5 = st.tabs([
+        if AIRDROP_SCORES_PATH.exists():
+            try:
+                airdrop_df = pd.read_csv(AIRDROP_SCORES_PATH)
+                st.caption("Airdrop Farmer Detector")
+                st.metric("Wallets Scored", str(len(airdrop_df)))
+                if "priority_tier" in airdrop_df.columns:
+                    tier_counts = airdrop_df["priority_tier"].value_counts()
+                    for tier in ["deprioritize", "watch", "normal"]:
+                        if tier in tier_counts:
+                            pct = 100 * tier_counts[tier] / len(airdrop_df)
+                            st.metric(tier.title(), f"{tier_counts[tier]} ({pct:.1f}%)")
+            except Exception:
+                pass
+
+    tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
         "Gas Price: Live", "Gas Price: Manual", "Gas Price v2 (LSTM)",
-        "Address Classifier", "Transaction Anomaly",
+        "Address Classifier", "Transaction Anomaly", "Airdrop Farmer Detector",
     ])
 
     with tab1:
@@ -417,6 +485,56 @@ def main() -> None:
                 except Exception as e:
                     with st.expander("Error details"):
                         st.exception(e)
+
+
+    _AIRDROP_FEATURE_COLS = [
+        "wallet_age_days", "tx_count_before_first_inflow", "token_type_diversity",
+        "inflow_to_outflow_hours", "shared_funder_score", "inter_tx_time_variance",
+        "unique_counterparty_count",
+    ]
+
+    with tab6:
+        st.header("Airdrop Farmer Detector")
+        st.write("Check whether a wallet behaves like a sybil airdrop farmer.")
+        st.caption(
+            "On-chain features are fetched from Etherscan on first request — typically takes 15–30 seconds. "
+            "Requires the seed step to have been run first to train the model."
+        )
+        airdrop_address = st.text_input(
+            "Ethereum Address",
+            placeholder="0x...",
+            help="A 42-character hex address starting with 0x",
+            key="airdrop_address_input",
+        )
+        if st.button("Analyze", key="btn_airdrop"):
+            if not airdrop_address:
+                st.warning("Please enter an Ethereum address.")
+            elif not (airdrop_address.startswith("0x") and len(airdrop_address) == 42):
+                st.error("Invalid address format. Must be 42 characters starting with 0x.")
+            else:
+                with st.status("Analyzing wallet...", expanded=True) as status:
+                    try:
+                        st.write(f"Submitting {airdrop_address}...")
+                        result = analyze_airdrop_farmer(st.session_state.airdrop_url, airdrop_address)
+                        if result["status"] == "done":
+                            status.update(label="Analysis complete", state="complete", expanded=False)
+                            _render_airdrop_result(result, _AIRDROP_FEATURE_COLS)
+                        elif result["status"] == "pending":
+                            status.update(label="Timed out", state="error")
+                            st.error("Analysis is still running. Try again in a moment.")
+                        else:
+                            status.update(label="Analysis failed", state="error")
+                            st.error(f"Error: {result.get('error', 'Unknown error')}")
+                    except Exception as e:
+                        _handle_request_errors(e, status)
+
+        if AIRDROP_SCORES_PATH.exists():
+            with st.expander("Training data: scored wallets"):
+                try:
+                    airdrop_df = pd.read_csv(AIRDROP_SCORES_PATH)
+                    st.dataframe(airdrop_df, use_container_width=True)
+                except Exception as exc:
+                    st.error(f"Could not load scores file: {exc}")
 
 
 if __name__ == "__main__":
