@@ -157,13 +157,14 @@ def main() -> None:
 
     # ── Fit model ────────────────────────────────────────────────────────────
     X = np.array([[row[col] for col in feature_cols] for row in rows], dtype=float)
-    print(f"\nFitting GMM (n_components={hp.get('n_components', 4)}) on {len(rows)} wallets ...")
+    print(f"\nFitting GMM on {len(rows)} wallets (BIC auto-select k=2..8) ...")
     wrapper = GMMWrapper(
         n_components=int(hp.get("n_components", 4)),
         covariance_type=hp.get("covariance_type", "full"),
         random_state=int(hp.get("random_state", 42)),
     )
     wrapper.fit(X, feature_cols)
+    print(f"Auto-selected k={wrapper.n_components}")
 
     print("\nBIC scores:")
     for entry in wrapper.bic_scores:
