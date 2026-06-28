@@ -19,6 +19,28 @@ def _elbow_eps(X_scaled: np.ndarray, min_samples: int) -> float:
 
 
 class DBSCANWrapper:
+    """
+    Unsupervised anomaly detector based on DBSCAN.
+
+    Core assumption: training data is dominated by normal transactions.
+    Dense regions in feature space = normal behaviour.
+    Sparse regions (far from any core point) = anomaly.
+
+    This assumption breaks if:
+      - Training data contains many anomalies (they form their own dense clusters
+        and become "normal" by definition).
+      - Anomaly ratio in training output is 30%+ — sign of bad training data.
+      - Attackers mimic normal tx patterns — blend into clusters undetected.
+
+    Anomaly scoring at inference:
+      score = distance to nearest core point from training.
+      score > eps  → farther than ε from any dense region → anomaly.
+      score ≤ eps  → within ε of a known cluster → normal.
+
+    ε serves double duty: cluster membership during training AND
+    the decision threshold at inference.
+    """
+
     def __init__(self, eps: float = 0.5, min_samples: int = 5, auto_eps: bool = False):
         self.eps = eps
         self.min_samples = min_samples
