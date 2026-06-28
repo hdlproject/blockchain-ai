@@ -43,6 +43,23 @@ class GMMWrapper:
         return scores
 
     def _identify_farmer_clusters(self) -> list[int]:
+        """
+        Score each cluster centroid against known farmer signals, return top-2 indices.
+
+        Steps:
+          1. Inverse-transform GMM means back to original feature space.
+          2. Normalize each feature column to 0–1 across clusters so features
+             are comparable regardless of scale.
+          3. For each farmer signal:
+               "low"  → cluster with lowest centroid value scores highest
+                        (contribution = 1 - normalized_value)
+               "high" → cluster with highest centroid value scores highest
+                        (contribution = normalized_value)
+             Sum contributions into farmer_proxy[k] for each cluster k.
+          4. The 2 clusters with highest farmer_proxy are labeled farmer clusters.
+             Their indices are stored in self._farmer_cluster_indices and used by
+             farmer_score() to sum predict_proba outputs.
+        """
         if self._gmm is None or self._scaler is None:
             raise RuntimeError("Call fit() first")
         means = self._scaler.inverse_transform(self._gmm.means_)
